@@ -1,25 +1,34 @@
 {
   "expo": {
-    "name": "dog-barking-prevention",
-    "slug": "dog-barking-prevention",
+    "name": "Barko",
+    "slug": "barko",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
-    "scheme": "dogbarkingprevention",
+    "icon": "./assets/images/logo.png",
+    "scheme": "barko",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Barko needs microphone access to listen for your dog's barks and play calming sounds.",
+        "UIBackgroundModes": [
+          "audio"
+        ]
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "backgroundColor": "#FF8C42",
+        "foregroundImage": "./assets/images/logo.png"
       },
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ],
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.reactifysolutions.barko"
     },
     "web": {
       "output": "static",
@@ -30,19 +39,32 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
+          "image": "./assets/images/logo.png",
+          "imageWidth": 300,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
-          "dark": {
-            "backgroundColor": "#000000"
-          }
+          "backgroundColor": "#FF8C42"
         }
-      ]
+      ],
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Barko needs microphone access to listen for your dog's barks."
+        }
+      ],
+      "expo-audio",
+      "expo-video",
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "e22e1e02-ab2d-48be-be87-203349a8bf5a"
+      }
+    },
+    "owner": "reactifysolutions"
   }
 }

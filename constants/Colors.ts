@@ -1,0 +1,145 @@
+// Barko Theme Colors and Constants
+
+export const Colors = {
+    // Primary colors
+    primary: '#FF8C42',
+    primaryDark: '#E67835',
+    primaryLight: '#FFB179',
+
+    // Secondary colors
+    secondary: '#56CCF2',
+    secondaryDark: '#3DB8DE',
+    secondaryLight: '#8EDCF6',
+
+    // Accent colors
+    accent: '#FF6B6B',
+    success: '#6FCF97',
+    warning: '#F2C94C',
+    danger: '#FF4136', // Added danger color for delete actions
+
+    // Bark level colors
+    levelLow: '#6FCF97',     // Green - gentle bark
+    levelMedium: '#F2C94C',  // Yellow - medium bark
+    levelHigh: '#FF6B6B',    // Red - loud bark
+
+    // Backgrounds
+    backgroundLight: '#FFF9F0',
+    backgroundDark: '#1A1A2E',
+    cardLight: '#FFFFFF',
+    cardDark: '#2D2D44',
+
+    // Text
+    textPrimary: '#3D2914',
+    textSecondary: '#7D6B5D',
+    textLight: '#FFFFFF',
+    textMuted: '#9E9E9E',
+
+    // Borders
+    border: '#E8E0D5',
+    borderDark: '#3D3D5C',
+
+    // Special
+    overlay: 'rgba(0, 0, 0, 0.5)',
+    transparent: 'transparent',
+};
+
+export const Spacing = {
+    xs: 4,
+    sm: 8,
+    md: 16,
+    lg: 24,
+    xl: 32,
+    xxl: 48,
+};
+
+export const BorderRadius = {
+    sm: 8,
+    md: 12,
+    lg: 16,
+    xl: 24,
+    round: 9999,
+};
+
+export const FontSizes = {
+    xs: 12,
+    sm: 14,
+    md: 16,
+    lg: 18,
+    xl: 24,
+    xxl: 32,
+    hero: 48,
+};
+
+export const FontWeights = {
+    regular: '400' as const,
+    medium: '500' as const,
+    semibold: '600' as const,
+    bold: '700' as const,
+};
+
+// Dog-themed text constants
+export const DogText = {
+    // App branding
+    appName: 'Barko',
+    tagline: "Your pup's personal zen master",
+
+    // Button labels
+    startListening: 'Start Sniffing 🐕',
+    stopListening: 'Paws & Stop 🛑',
+    saveRecording: 'Save to Kennel',
+    deleteRecording: 'Send to Doghouse',
+    addRecording: 'Add more paw-sitive sounds',
+
+    // Screen titles
+    homeTitle: 'Ready to Sniff?',
+    listeningTitle: 'Sniffing for Woofs...',
+    recordingsTitle: 'Your Calming Woofs',
+    reportsTitle: 'Bark-ives',
+    settingsTitle: 'Paw-ferences',
+
+    // Status messages
+    noBarks: 'No woofs detected yet! Your pup is being a good boy! 🐾',
+    cooldownActive: 'Waiting for cooldown...',
+    sessionComplete: 'Session complete! Report being generated...',
+
+    // Recording states
+    tapToRecord: 'Tap to record',
+    recording: 'Recording... Speak to your pup!',
+    noRecording: 'No recording yet',
+
+    // Level descriptions
+    levelGentleWoof: 'Gentle Woof 🦴',
+    levelMediumBork: 'Medium Bork 🦴🦴',
+    levelBigBark: 'Big Bark 🦴🦴🦴',
+
+    // Loading states
+    loadingData: 'Sniffing the data...',
+    loadingReports: 'Fetching your reports...',
+    loadingRecordings: 'Digging up recordings...',
+
+    // Success messages
+    recordingSaved: 'Paw-some! Recording saved to your pack!',
+    reportGenerated: 'Woof-derful! Report ready for review!',
+
+    // Empty states
+    noReports: 'No bark-ives yet! Start a session to create your first report.',
+    noRecordings: 'Record some calming sounds for your floofer!',
+};
+
+// Animation durations
+export const Animations = {
+    fast: 150,
+    normal: 300,
+    slow: 500,
+    pulse: 1000,
+};
+
+export default {
+    Colors,
+    Spacing,
+    BorderRadius,
+    FontSizes,
+    FontWeights,
+    DogText,
+    Animations,
+};

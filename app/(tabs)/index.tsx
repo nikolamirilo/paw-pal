@@ -1,98 +1,333 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
-
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { Card } from '@/components/ui/Card';
+import { Colors, DogText, FontSizes, FontWeights, Spacing } from '@/constants/Colors';
+import { useDogProfile, useIsListening, useReports } from '@/store/appStore';
+import { useRouter } from 'expo-router';
+import React from 'react';
+import {
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming
+} from 'react-native-reanimated';
 
 export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+  const router = useRouter();
+  const dogProfile = useDogProfile();
+  const reports = useReports();
+  const isListening = useIsListening();
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+  // Animation for the main button
+  const buttonScale = useSharedValue(1);
+  const pawRotation = useSharedValue(0);
+
+  React.useEffect(() => {
+    // Subtle pulse animation for idle state
+    if (!isListening) {
+      buttonScale.value = withRepeat(
+        withSequence(
+          withTiming(1.02, { duration: 2000 }),
+          withTiming(1, { duration: 2000 })
+        ),
+        -1,
+        true
+      );
+      pawRotation.value = withRepeat(
+        withSequence(
+          withTiming(5, { duration: 500 }),
+          withTiming(-5, { duration: 1000 }),
+          withTiming(0, { duration: 500 })
+        ),
+        -1
+      );
+    }
+  }, [isListening]);
+
+  const buttonAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: buttonScale.value }],
+  }));
+
+  const pawAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${pawRotation.value}deg` }],
+  }));
+
+  // Calculate today's stats
+  const todaysReports = reports.filter((r) => {
+    const today = new Date();
+    const reportDate = new Date(r.generatedAt);
+    return reportDate.toDateString() === today.toDateString();
+  });
+  const todaysBarks = todaysReports.reduce((sum, r) => sum + r.totalBarks, 0);
+
+  const lastBarkTime = reports.length > 0
+    ? getRelativeTime(new Date(reports[0].generatedAt))
+    : 'No sessions yet';
+
+  const handleStartListening = () => {
+    router.push('/listening');
+  };
+
+  return (
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.appName}>{DogText.appName}</Text>
+        <Text style={styles.tagline}>{DogText.tagline}</Text>
+      </View>
+
+      {/* Dog Profile Card */}
+      <Card variant="elevated" style={styles.profileCard}>
+        <View style={styles.profileContent}>
+          <View style={styles.avatarContainer}>
+            {dogProfile.avatarUri ? (
+              <Image source={{ uri: dogProfile.avatarUri }} style={styles.avatar} />
+            ) : (
+              <View style={styles.avatarPlaceholder}>
+                <Image source={require('../../assets/images/logo.png')} style={styles.avatar} />
+              </View>
+            )}
+          </View>
+          <View style={styles.profileInfo}>
+            <Text style={styles.dogName}>{dogProfile.name}</Text>
+            <Text style={styles.dogStatus}>
+              {isListening ? '🎧 Currently listening...' : '😴 Currently snoozing'}
+            </Text>
+          </View>
+        </View>
+      </Card>
+
+      {/* Main Action Button */}
+      <Animated.View style={[styles.mainButtonContainer, buttonAnimatedStyle]}>
+        <TouchableOpacity
+          style={styles.mainButton}
+          onPress={handleStartListening}
+          activeOpacity={0.9}
+        >
+          <View style={styles.mainButtonInner}>
+            <Text style={styles.mainButtonEmoji}>🎧</Text>
+            <Text style={styles.mainButtonText}>
+              {isListening ? 'Sniffing...' : 'START'}
+            </Text>
+            <Text style={styles.mainButtonSubtext}>
+              {isListening ? 'Tap to view' : 'SNIFFING'}
+            </Text>
+          </View>
+        </TouchableOpacity>
+      </Animated.View>
+
+      {/* Quick Stats */}
+      <View style={styles.statsContainer}>
+        <Card style={styles.statCard}>
+          <Text style={styles.statEmoji}>🐕</Text>
+          <Text style={styles.statValue}>{todaysBarks}</Text>
+          <Text style={styles.statLabel}>Today's Woofs</Text>
+        </Card>
+        <Card style={styles.statCard}>
+          <Text style={styles.statEmoji}>⏰</Text>
+          <Text style={styles.statValue}>{todaysReports.length}</Text>
+          <Text style={styles.statLabel}>Sessions</Text>
+        </Card>
+      </View>
+
+      {/* Last Activity */}
+      <Card emoji="📊" title="Recent Activity" style={styles.activityCard}>
+        <Text style={styles.activityText}>
+          {reports.length > 0
+            ? `Last session: ${lastBarkTime}`
+            : DogText.noBarks}
+        </Text>
+        {reports.length > 0 && (
+          <TouchableOpacity onPress={() => router.push('/reports')}>
+            <Text style={styles.viewAllLink}>View all bark-ives →</Text>
+          </TouchableOpacity>
+        )}
+      </Card>
+
+      {/* Tips */}
+      <Card emoji="💡" title="Paw-some Tip" style={styles.tipCard}>
+        <Text style={styles.tipText}>
+          Record your own voice to calm your pup! Dogs respond best to their hooman's voice. 🐾
+        </Text>
+      </Card>
+    </ScrollView>
   );
 }
 
+function getRelativeTime(date: Date): string {
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins} minutes ago`;
+  if (diffHours < 24) return `${diffHours} hours ago`;
+  if (diffDays === 1) return 'Yesterday';
+  return `${diffDays} days ago`;
+}
+
 const styles = StyleSheet.create({
-  titleContainer: {
+  container: {
+    flex: 1,
+    backgroundColor: Colors.backgroundLight,
+  },
+  content: {
+    padding: Spacing.lg,
+    paddingTop: Spacing.xxl,
+  },
+  header: {
+    alignItems: 'center',
+    marginBottom: Spacing.xl,
+  },
+  logoImage: {
+    width: 80,
+    height: 80,
+    marginBottom: Spacing.sm,
+  },
+  logo: {
+    fontSize: 64,
+    marginBottom: Spacing.sm,
+  },
+  appName: {
+    fontSize: FontSizes.hero,
+    fontWeight: FontWeights.bold,
+    color: Colors.primary,
+    letterSpacing: 2,
+  },
+  tagline: {
+    fontSize: FontSizes.md,
+    color: Colors.textSecondary,
+    marginTop: Spacing.xs,
+    fontStyle: 'italic',
+  },
+  profileCard: {
+    marginBottom: Spacing.lg,
+  },
+  profileContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: Spacing.md,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  avatarContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    overflow: 'hidden',
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  avatar: {
+    width: '100%',
+    height: '100%',
+  },
+  avatarPlaceholder: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: Colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarEmoji: {
+    fontSize: 32,
+  },
+  profileInfo: {
+    flex: 1,
+  },
+  dogName: {
+    fontSize: FontSizes.xl,
+    fontWeight: FontWeights.bold,
+    color: Colors.textPrimary,
+  },
+  dogStatus: {
+    fontSize: FontSizes.sm,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  mainButtonContainer: {
+    alignItems: 'center',
+    marginVertical: Spacing.xl,
+  },
+  mainButton: {
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  mainButtonInner: {
+    alignItems: 'center',
+  },
+  mainButtonEmoji: {
+    fontSize: 48,
+    marginBottom: Spacing.sm,
+  },
+  mainButtonText: {
+    fontSize: FontSizes.xl,
+    fontWeight: FontWeights.bold,
+    color: Colors.textLight,
+  },
+  mainButtonSubtext: {
+    fontSize: FontSizes.md,
+    color: Colors.textLight,
+    opacity: 0.9,
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+    marginBottom: Spacing.lg,
+  },
+  statCard: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: Spacing.lg,
+  },
+  statEmoji: {
+    fontSize: 28,
+    marginBottom: Spacing.xs,
+  },
+  statValue: {
+    fontSize: FontSizes.xxl,
+    fontWeight: FontWeights.bold,
+    color: Colors.textPrimary,
+  },
+  statLabel: {
+    fontSize: FontSizes.sm,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  activityCard: {
+    marginBottom: Spacing.md,
+  },
+  activityText: {
+    fontSize: FontSizes.md,
+    color: Colors.textSecondary,
+  },
+  viewAllLink: {
+    fontSize: FontSizes.md,
+    color: Colors.primary,
+    fontWeight: FontWeights.semibold,
+    marginTop: Spacing.sm,
+  },
+  tipCard: {
+    marginBottom: Spacing.lg,
+    backgroundColor: Colors.primaryLight + '30',
+  },
+  tipText: {
+    fontSize: FontSizes.md,
+    color: Colors.textSecondary,
+    lineHeight: 22,
   },
 });
