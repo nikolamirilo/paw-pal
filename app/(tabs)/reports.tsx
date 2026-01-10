@@ -69,7 +69,7 @@ export default function ReportsScreen() {
                         <Text style={styles.statText}>{formatDuration(report.duration)}</Text>
                     </View>
                     <View style={styles.reportStat}>
-                        <Text style={styles.statIcon}>🐕</Text>
+                        <Text style={styles.statIcon}>🐶</Text>
                         <Text style={styles.statText}>{report.totalBarks} woofs</Text>
                     </View>
                     <View style={styles.reportStat}>
@@ -102,7 +102,7 @@ export default function ReportsScreen() {
         return (
             <View style={styles.emptyContainer}>
                 <Text style={styles.emptyEmoji}>📊</Text>
-                <Text style={styles.emptyTitle}>No Bark-ives Yet!</Text>
+                <Text style={styles.emptyTitle}>No Bark-tivities Yet!</Text>
                 <Text style={styles.emptyText}>{DogText.noReports}</Text>
                 <TouchableOpacity
                     style={styles.startButton}
@@ -127,7 +127,7 @@ export default function ReportsScreen() {
             {/* Header */}
             <View style={styles.header}>
                 <Text style={styles.title}>{DogText.reportsTitle}</Text>
-                <Text style={styles.subtitle}>Track your pup's progress!</Text>
+                <Text style={styles.subtitle}>Track your pet's progress!</Text>
             </View>
 
             {/* Weekly Summary */}

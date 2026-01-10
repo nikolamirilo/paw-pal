@@ -1,4 +1,4 @@
-// Barko App Types
+// Paw Pal App Types
 
 export type BarkLevel = number; // 1-based index corresponding to threshold level
 

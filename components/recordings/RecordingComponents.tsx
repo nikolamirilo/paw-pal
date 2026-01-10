@@ -127,7 +127,7 @@ export function RecordingSlot({
     const getLevelName = (level: number) => {
         switch (level) {
             case 1: return 'Gentle Woof';
-            case 2: return 'Medium Bork';
+            case 2: return 'Medium Bark';
             case 3: return 'Big Bark';
             default: return `Level ${level}`;
         }

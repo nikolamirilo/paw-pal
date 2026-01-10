@@ -87,7 +87,7 @@ export const useAppStore = create<AppState>()(
             setIsListening: (listening: boolean) => set({ isListening: listening }),
         }),
         {
-            name: 'barko-storage',
+            name: 'paw-pal-storage',
             storage: createJSONStorage(() => AsyncStorage),
             partialize: (state) => ({
                 dogProfile: state.dogProfile,

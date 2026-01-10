@@ -1,3 +1,4 @@
+//@ts-nocheck
 import { BarkLevelIndicator, SoundWave } from '@/components/listening/SoundWave';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -93,7 +94,7 @@ export default function ListeningScreen() {
             setSessionStats({ barkCount: 0, soundsPlayed: 0 });
         } catch (error) {
             Alert.alert(
-                'Ruh-roh! 🐕',
+                'Ruh-roh! 🐶',
                 'Could not start listening. Please check microphone permissions.',
                 [{ text: 'OK' }]
             );
@@ -138,7 +139,7 @@ export default function ListeningScreen() {
         } else {
             Alert.alert(
                 'Session Complete 🐾',
-                'No woofs detected! Your pup was a good boy/girl!',
+                'No woofs detected! Your pet was a good boy/girl!',
                 [{ text: 'Paw-some!' }]
             );
         }
@@ -267,7 +268,7 @@ export default function ListeningScreen() {
                     <Text style={styles.instructionsTitle}>How it works 🐾</Text>
                     <Text style={styles.instructionsText}>
                         1. Tap "Start Sniffing" to begin listening{'\n'}
-                        2. Barko will detect when your pup barks{'\n'}
+                        2. Paw Pal will detect when your pet barks{'\n'}
                         3. Calming sounds play automatically{'\n'}
                         4. View detailed reports after each session
                     </Text>

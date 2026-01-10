@@ -1,9 +1,12 @@
 import { Card } from '@/components/ui/Card';
-import { Colors, DogText, FontSizes, FontWeights, Spacing } from '@/constants/Colors';
+import { PawIcon } from '@/components/ui/PawIcon';
+import { BorderRadius, Colors, DogText, FontSizes, FontWeights, Spacing } from '@/constants/Colors';
 import { useDogProfile, useIsListening, useReports } from '@/store/appStore';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import {
+  Dimensions,
   Image,
   ScrollView,
   StyleSheet,
@@ -19,6 +22,8 @@ import Animated, {
   withTiming
 } from 'react-native-reanimated';
 
+const { width } = Dimensions.get('window');
+
 export default function HomeScreen() {
   const router = useRouter();
   const dogProfile = useDogProfile();
@@ -30,33 +35,45 @@ export default function HomeScreen() {
   const pawRotation = useSharedValue(0);
 
   React.useEffect(() => {
-    // Subtle pulse animation for idle state
     if (!isListening) {
+      // Heartbeat animation for idle state - More organic
       buttonScale.value = withRepeat(
         withSequence(
-          withTiming(1.02, { duration: 2000 }),
-          withTiming(1, { duration: 2000 })
+          withTiming(1.03, { duration: 1000 }),
+          withTiming(1.0, { duration: 1000 }),
         ),
         -1,
         true
       );
+      // Gentle sway
       pawRotation.value = withRepeat(
         withSequence(
-          withTiming(5, { duration: 500 }),
-          withTiming(-5, { duration: 1000 }),
-          withTiming(0, { duration: 500 })
+          withTiming(5, { duration: 2500 }),
+          withTiming(-5, { duration: 2500 })
         ),
-        -1
+        -1,
+        true
       );
+    } else {
+      // Alert pulse for listening
+      buttonScale.value = withRepeat(
+        withSequence(
+          withTiming(1.08, { duration: 800 }),
+          withTiming(1.0, { duration: 800 })
+        ),
+        -1,
+        true
+      );
+      // Reset rotation for focus
+      pawRotation.value = withTiming(0);
     }
   }, [isListening]);
 
   const buttonAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: buttonScale.value }],
-  }));
-
-  const pawAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${pawRotation.value}deg` }],
+    transform: [
+      { scale: buttonScale.value },
+      { rotate: `${pawRotation.value}deg` }
+    ],
   }));
 
   // Calculate today's stats
@@ -76,88 +93,139 @@ export default function HomeScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.appName}>{DogText.appName}</Text>
-        <Text style={styles.tagline}>{DogText.tagline}</Text>
-      </View>
-
-      {/* Dog Profile Card */}
-      <Card variant="elevated" style={styles.profileCard}>
-        <View style={styles.profileContent}>
-          <View style={styles.avatarContainer}>
+    <View style={styles.container}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Header Section */}
+        <View style={styles.header}>
+          <View style={styles.headerTextContainer}>
+            <Text style={styles.greetingText}>Hi, {dogProfile.name || 'Friend'}! </Text>
+            <Text style={styles.tagline}>{DogText.tagline}</Text>
+          </View>
+          <TouchableOpacity onPress={() => router.push('/settings')} style={styles.profileButton}>
             {dogProfile.avatarUri ? (
-              <Image source={{ uri: dogProfile.avatarUri }} style={styles.avatar} />
+              <Image source={{ uri: dogProfile.avatarUri }} style={styles.avatar} resizeMode="cover" />
             ) : (
               <View style={styles.avatarPlaceholder}>
-                <Image source={require('../../assets/images/logo.png')} style={styles.avatar} />
+                <Image source={require('../../assets/images/pet_default.png')} style={styles.avatar} resizeMode="cover" />
               </View>
             )}
+          </TouchableOpacity>
+        </View>
+
+        {/* Main Action Area */}
+        <View style={styles.mainActionContainer}>
+          <Animated.View style={[styles.mainButtonWrapper, buttonAnimatedStyle]}>
+            <TouchableOpacity
+              onPress={handleStartListening}
+              activeOpacity={0.9}
+              style={styles.touchableButton}
+            >
+              <LinearGradient
+                colors={isListening
+                  ? [Colors.levelHigh, Colors.accent] // Red/Alert when listening
+                  : [Colors.primaryLight, Colors.primary]} // Orange/Warm when idle
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.mainButtonGradient}
+              >
+                <View style={styles.pawContainer}>
+                  <PawIcon size={120} color="#FFF" />
+                </View>
+                <View style={styles.buttonLabelContainer}>
+                  <Text style={styles.buttonLabel}>
+                    GO!
+                  </Text>
+                </View>
+              </LinearGradient>
+            </TouchableOpacity>
+          </Animated.View>
+
+          <Text style={styles.statusText}>
+            {isListening
+              ? "Keep quiet, I'm listening for woofs..."
+              : "Tap the paw to start monitoring"}
+          </Text>
+        </View>
+
+        {/* Stats Grid */}
+        <View style={styles.statsRow}>
+          <View style={styles.statCol}>
+            <Card style={styles.statCard} variant="elevated">
+              <LinearGradient
+                colors={[Colors.backgroundLight, '#FFF5EB']}
+                style={styles.statGradient}
+              >
+                <Image source={require('../../assets/images/woof.png')} style={styles.statIcon} resizeMode="contain" />
+                <Text style={styles.statValue}>{todaysBarks}</Text>
+                <Text style={styles.statLabel}>Today's Woofs</Text>
+              </LinearGradient>
+            </Card>
           </View>
-          <View style={styles.profileInfo}>
-            <Text style={styles.dogName}>{dogProfile.name}</Text>
-            <Text style={styles.dogStatus}>
-              {isListening ? '🎧 Currently listening...' : '😴 Currently snoozing'}
-            </Text>
+          <View style={styles.statCol}>
+            <Card style={styles.statCard} variant="elevated">
+              <LinearGradient
+                colors={[Colors.backgroundLight, '#EBF9FF']}
+                style={styles.statGradient}
+              >
+                <Image source={require('../../assets/images/session.png')} style={styles.statIcon} resizeMode="contain" />
+                <Text style={styles.statValue}>{todaysReports.length}</Text>
+                <Text style={styles.statLabel}>Sessions</Text>
+              </LinearGradient>
+            </Card>
           </View>
         </View>
-      </Card>
 
-      {/* Main Action Button */}
-      <Animated.View style={[styles.mainButtonContainer, buttonAnimatedStyle]}>
-        <TouchableOpacity
-          style={styles.mainButton}
-          onPress={handleStartListening}
-          activeOpacity={0.9}
-        >
-          <View style={styles.mainButtonInner}>
-            <Text style={styles.mainButtonEmoji}>🎧</Text>
-            <Text style={styles.mainButtonText}>
-              {isListening ? 'Sniffing...' : 'START'}
-            </Text>
-            <Text style={styles.mainButtonSubtext}>
-              {isListening ? 'Tap to view' : 'SNIFFING'}
-            </Text>
+        {/* Recent Activity */}
+        <View style={styles.sectionContainer}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Recent Activity</Text>
+            {reports.length > 0 && (
+              <TouchableOpacity onPress={() => router.push('/reports')}>
+                <Text style={styles.seeAllLink}>See All</Text>
+              </TouchableOpacity>
+            )}
           </View>
-        </TouchableOpacity>
-      </Animated.View>
+          <TouchableOpacity onPress={() => router.push('/reports')} style={{ width: '100%' }}>
+            <Card variant="elevated" style={styles.activityCard}>
+              <View style={styles.activityRow}>
+                <View style={[styles.activityIcon, { backgroundColor: reports.length > 0 ? Colors.success + '20' : Colors.textMuted + '20' }]}>
+                  <Text style={{ fontSize: 20 }}>{reports.length > 0 ? '📊' : '💤'}</Text>
+                </View>
 
-      {/* Quick Stats */}
-      <View style={styles.statsContainer}>
-        <Card style={styles.statCard}>
-          <Text style={styles.statEmoji}>🐕</Text>
-          <Text style={styles.statValue}>{todaysBarks}</Text>
-          <Text style={styles.statLabel}>Today's Woofs</Text>
-        </Card>
-        <Card style={styles.statCard}>
-          <Text style={styles.statEmoji}>⏰</Text>
-          <Text style={styles.statValue}>{todaysReports.length}</Text>
-          <Text style={styles.statLabel}>Sessions</Text>
-        </Card>
-      </View>
+                <View style={styles.activityContent} >
+                  <Text style={styles.activityMainText}>
+                    {reports.length > 0 ? 'Recent Bark-tivities' : 'No bark-tivities recorded'}
+                  </Text>
+                  <Text style={styles.activitySubText}>
+                    {reports.length > 0 ? lastBarkTime : 'Start listening to track barks!'}
+                  </Text>
+                </View>
 
-      {/* Last Activity */}
-      <Card emoji="📊" title="Recent Activity" style={styles.activityCard}>
-        <Text style={styles.activityText}>
-          {reports.length > 0
-            ? `Last session: ${lastBarkTime}`
-            : DogText.noBarks}
-        </Text>
-        {reports.length > 0 && (
-          <TouchableOpacity onPress={() => router.push('/reports')}>
-            <Text style={styles.viewAllLink}>View all bark-ives →</Text>
+                {reports.length > 0 && <Text style={styles.arrowIcon}>›</Text>}
+              </View>
+            </Card>
           </TouchableOpacity>
-        )}
-      </Card>
+        </View>
 
-      {/* Tips */}
-      <Card emoji="💡" title="Paw-some Tip" style={styles.tipCard}>
-        <Text style={styles.tipText}>
-          Record your own voice to calm your pup! Dogs respond best to their hooman's voice. 🐾
-        </Text>
-      </Card>
-    </ScrollView>
+        {/* Daily Tip */}
+        <View style={styles.sectionContainer}>
+          <LinearGradient
+            colors={[Colors.primary + '15', Colors.primary + '05']}
+            style={styles.tipContainer}
+          >
+            <View style={styles.tipHeader}>
+              <Text style={styles.tipIcon}>💡</Text>
+              <Text style={styles.tipTitle}>Paw-some Tip</Text>
+            </View>
+            <Text style={styles.tipText}>
+              Dogs respond best to their human's voice. Try recording a calming message in Settings! 🎙️
+            </Text>
+          </LinearGradient>
+        </View>
+
+        <View style={{ height: 100 }} />
+      </ScrollView>
+    </View>
   );
 }
 
@@ -169,8 +237,8 @@ function getRelativeTime(date: Date): string {
   const diffDays = Math.floor(diffHours / 24);
 
   if (diffMins < 1) return 'Just now';
-  if (diffMins < 60) return `${diffMins} minutes ago`;
-  if (diffHours < 24) return `${diffHours} hours ago`;
+  if (diffMins < 60) return `${diffMins} min ago`;
+  if (diffHours < 24) return `${diffHours} hr ago`;
   if (diffDays === 1) return 'Yesterday';
   return `${diffDays} days ago`;
 }
@@ -182,152 +250,230 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: Spacing.lg,
-    paddingTop: Spacing.xxl,
+    paddingTop: Spacing.xl + 20, // Extra space for status bar
   },
   header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: Spacing.xl,
   },
-  logoImage: {
-    width: 80,
-    height: 80,
-    marginBottom: Spacing.sm,
+  headerTextContainer: {
+    flex: 1,
   },
-  logo: {
-    fontSize: 64,
-    marginBottom: Spacing.sm,
-  },
-  appName: {
-    fontSize: FontSizes.hero,
+  greetingText: {
+    fontSize: FontSizes.xxl,
     fontWeight: FontWeights.bold,
-    color: Colors.primary,
-    letterSpacing: 2,
+    color: Colors.textPrimary,
+    letterSpacing: -0.5,
   },
   tagline: {
-    fontSize: FontSizes.md,
+    fontSize: FontSizes.sm,
     color: Colors.textSecondary,
-    marginTop: Spacing.xs,
-    fontStyle: 'italic',
+    fontWeight: FontWeights.medium,
   },
-  profileCard: {
-    marginBottom: Spacing.lg,
-  },
-  profileContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-  },
-  avatarContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    overflow: 'hidden',
+  profileButton: {
+    width: 70,
+    height: 70,
+    borderRadius: 25,
+    borderWidth: 2,
+    borderColor: Colors.backgroundLight,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   avatar: {
     width: '100%',
     height: '100%',
+    borderRadius: 25,
   },
   avatarPlaceholder: {
     width: '100%',
     height: '100%',
-    backgroundColor: Colors.primaryLight,
+    borderRadius: 25,
+    backgroundColor: "#EEE",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden"
+  },
+  mainActionContainer: {
     alignItems: 'center',
-    justifyContent: 'center',
+    marginBottom: Spacing.xl,
+    marginTop: Spacing.md,
   },
-  avatarEmoji: {
-    fontSize: 32,
-  },
-  profileInfo: {
-    flex: 1,
-  },
-  dogName: {
-    fontSize: FontSizes.xl,
-    fontWeight: FontWeights.bold,
-    color: Colors.textPrimary,
-  },
-  dogStatus: {
-    fontSize: FontSizes.sm,
-    color: Colors.textSecondary,
-    marginTop: 2,
-  },
-  mainButtonContainer: {
-    alignItems: 'center',
-    marginVertical: Spacing.xl,
-  },
-  mainButton: {
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    backgroundColor: Colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
+  mainButtonWrapper: {
+    borderRadius: 125, // Half of width/height
     shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 15,
   },
-  mainButtonInner: {
+  touchableButton: {
+    width: 250,
+    height: 250,
+    borderRadius: 125,
+  },
+  mainButtonGradient: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 125,
     alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 6,
+    borderColor: 'rgba(255,255,255,0.3)',
   },
-  mainButtonEmoji: {
-    fontSize: 48,
-    marginBottom: Spacing.sm,
+  pawContainer: {
+    marginBottom: Spacing.xs,
+    transform: [{ translateY: 10 }],
   },
-  mainButtonText: {
+  buttonLabelContainer: {
+    alignItems: 'center',
+    position: "relative",
+    top: 15
+  },
+  buttonLabel: {
     fontSize: FontSizes.xl,
     fontWeight: FontWeights.bold,
-    color: Colors.textLight,
+    color: '#FFF',
+    includeFontPadding: false,
+    textShadowColor: 'rgba(0,0,0,0.1)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
-  mainButtonSubtext: {
+  buttonSubLabel: {
+    fontSize: FontSizes.lg,
+    fontWeight: FontWeights.bold,
+    color: 'rgba(255,255,255,0.9)',
+    letterSpacing: 2,
+    marginTop: -2,
+  },
+  statusText: {
+    marginTop: Spacing.lg,
     fontSize: FontSizes.md,
-    color: Colors.textLight,
-    opacity: 0.9,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    fontWeight: FontWeights.medium,
   },
-  statsContainer: {
+  statsRow: {
     flexDirection: 'row',
     gap: Spacing.md,
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.xl,
+  },
+  statCol: {
+    flex: 1,
   },
   statCard: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: Spacing.lg,
+    overflow: 'hidden',
+    borderWidth: 0,
+    height: "auto",
+    padding: 0,
+    minHeight: 180
   },
-  statEmoji: {
-    fontSize: 28,
+  statGradient: {
+    flex: 1,
+    padding: Spacing.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 10,
+    paddingBottom: 10
+  },
+  statIcon: {
+    width: 60,
+    height: 60,
     marginBottom: Spacing.xs,
+    marginTop: Spacing.xs,
   },
   statValue: {
-    fontSize: FontSizes.xxl,
+    fontSize: 36,
     fontWeight: FontWeights.bold,
     color: Colors.textPrimary,
   },
   statLabel: {
+    fontSize: FontSizes.xs,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    color: Colors.textSecondary,
+    fontWeight: FontWeights.semibold,
+  },
+  sectionContainer: {
+    marginBottom: Spacing.lg,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
+    paddingHorizontal: Spacing.xs,
+  },
+  sectionTitle: {
+    fontSize: FontSizes.lg,
+    fontWeight: FontWeights.bold,
+    color: Colors.textPrimary,
+  },
+  seeAllLink: {
+    fontSize: FontSizes.md,
+    color: Colors.primary,
+    fontWeight: FontWeights.semibold,
+  },
+  activityCard: {
+    padding: Spacing.md,
+  },
+  activityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+  },
+  activityIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activityContent: {
+    flex: 1,
+  },
+  activityMainText: {
+    fontSize: FontSizes.md,
+    fontWeight: FontWeights.semibold,
+    color: Colors.textPrimary,
+  },
+  activitySubText: {
     fontSize: FontSizes.sm,
     color: Colors.textSecondary,
     marginTop: 2,
   },
-  activityCard: {
-    marginBottom: Spacing.md,
+  arrowIcon: {
+    fontSize: 24,
+    color: Colors.borderDark,
+    opacity: 0.5,
   },
-  activityText: {
+  tipContainer: {
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.lg,
+    borderWidth: 1,
+    borderColor: Colors.primary + '20',
+  },
+  tipHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  tipIcon: {
+    fontSize: 20,
+  },
+  tipTitle: {
     fontSize: FontSizes.md,
-    color: Colors.textSecondary,
-  },
-  viewAllLink: {
-    fontSize: FontSizes.md,
-    color: Colors.primary,
-    fontWeight: FontWeights.semibold,
-    marginTop: Spacing.sm,
-  },
-  tipCard: {
-    marginBottom: Spacing.lg,
-    backgroundColor: Colors.primaryLight + '30',
+    fontWeight: FontWeights.bold,
+    color: Colors.primaryDark,
   },
   tipText: {
-    fontSize: FontSizes.md,
+    fontSize: FontSizes.sm,
     color: Colors.textSecondary,
-    lineHeight: 22,
+    lineHeight: 20,
   },
 });

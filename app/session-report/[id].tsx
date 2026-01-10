@@ -28,7 +28,7 @@ export default function ReportDetailScreen() {
     if (!report) {
         return (
             <View style={styles.errorContainer}>
-                <Text style={styles.errorEmoji}>🐕</Text>
+                <Text style={styles.errorEmoji}>🐶</Text>
                 <Text style={styles.errorText}>Report not found!</Text>
                 <Button
                     title="Go Back"
@@ -65,7 +65,7 @@ export default function ReportDetailScreen() {
             <Card emoji="🦴" title="WOOF SUMMARY" style={styles.summaryCard}>
                 <View style={styles.statsRow}>
                     <StatCard
-                        emoji="🐕"
+                        emoji="🐶"
                         label="Total Woofs"
                         value={report.totalBarks}
                     />
@@ -74,10 +74,18 @@ export default function ReportDetailScreen() {
                         label="Sounds Played"
                         value={report.soundsPlayed}
                     />
+                </View>
+                <View style={styles.statsRow}>
                     <StatCard
                         emoji="⏱️"
                         label="Duration"
                         value={formatDuration(report.duration)}
+                    />
+                    <StatCard
+                        emoji="📊"
+                        label="Barks/Min"
+                        value={(report.totalBarks / Math.max(report.duration / 60, 1)).toFixed(1)}
+                        subtext={report.duration < 60 ? '(under 1 min)' : undefined}
                     />
                 </View>
             </Card>
@@ -139,7 +147,7 @@ export default function ReportDetailScreen() {
             {/* Actions */}
             <View style={styles.actions}>
                 <Button
-                    title="← Back to Bark-ives"
+                    title="← Back to Bark-tivities"
                     onPress={() => router.back()}
                     variant="outline"
                 />

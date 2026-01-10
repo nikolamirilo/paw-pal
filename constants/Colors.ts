@@ -1,4 +1,4 @@
-// Barko Theme Colors and Constants
+// Paw Pal Theme Colors and Constants
 
 export const Colors = {
     // Primary colors
@@ -80,36 +80,36 @@ export const FontWeights = {
 // Dog-themed text constants
 export const DogText = {
     // App branding
-    appName: 'Barko',
-    tagline: "Your pup's personal zen master",
+    appName: 'Paw Pal',
+    tagline: "I am your digital com-paw-nion!",
 
     // Button labels
-    startListening: 'Start Sniffing 🐕',
-    stopListening: 'Paws & Stop 🛑',
-    saveRecording: 'Save to Kennel',
-    deleteRecording: 'Send to Doghouse',
-    addRecording: 'Add more paw-sitive sounds',
+    startListening: 'Start',
+    stopListening: 'Stop',
+    saveRecording: 'Save',
+    deleteRecording: 'Delete',
+    addRecording: 'Add',
 
     // Screen titles
     homeTitle: 'Ready to Sniff?',
     listeningTitle: 'Sniffing for Woofs...',
     recordingsTitle: 'Your Calming Woofs',
-    reportsTitle: 'Bark-ives',
+    reportsTitle: 'Bark-tivities',
     settingsTitle: 'Paw-ferences',
 
     // Status messages
-    noBarks: 'No woofs detected yet! Your pup is being a good boy! 🐾',
+    noBarks: 'No woofs detected yet! Your pet is being a good boy! 🐾',
     cooldownActive: 'Waiting for cooldown...',
     sessionComplete: 'Session complete! Report being generated...',
 
     // Recording states
     tapToRecord: 'Tap to record',
-    recording: 'Recording... Speak to your pup!',
+    recording: 'Recording... Speak to your pet!',
     noRecording: 'No recording yet',
 
     // Level descriptions
     levelGentleWoof: 'Gentle Woof 🦴',
-    levelMediumBork: 'Medium Bork 🦴🦴',
+    levelMediumBark: 'Medium Bark 🦴🦴',
     levelBigBark: 'Big Bark 🦴🦴🦴',
 
     // Loading states
@@ -122,8 +122,8 @@ export const DogText = {
     reportGenerated: 'Woof-derful! Report ready for review!',
 
     // Empty states
-    noReports: 'No bark-ives yet! Start a session to create your first report.',
-    noRecordings: 'Record some calming sounds for your floofer!',
+    noReports: 'No bark-tivities yet! Start a session to create your first report.',
+    noRecordings: 'Record some calming sounds for your pet!',
 };
 
 // Animation durations

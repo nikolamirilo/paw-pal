@@ -49,7 +49,7 @@ export default function RecordingsScreen() {
       setCurrentRecordingLevel(level);
     } catch (error) {
       Alert.alert(
-        'Ruh-roh! 🐕',
+        'Ruh-roh! 🐶',
         'Could not start recording. Please check microphone permissions.',
         [{ text: 'OK' }]
       );
@@ -86,7 +86,7 @@ export default function RecordingsScreen() {
       }
     } catch (error) {
       Alert.alert(
-        'Oops! 🐕',
+        'Oops! 🐶',
         `Could not save recording: ${(error as Error).message}`,
         [{ text: 'OK' }]
       );
@@ -159,7 +159,7 @@ export default function RecordingsScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>{DogText.recordingsTitle}</Text>
         <Text style={styles.subtitle}>
-          Record your voice to calm your floofer!
+          Record your voice to calm your pet!
         </Text>
       </View>
 
@@ -176,7 +176,7 @@ export default function RecordingsScreen() {
               Recording for Level {currentRecordingLevel}...
             </Text>
             <Text style={styles.recordingHint}>
-              Speak calmly to your pup! 🐕
+              Speak calmly to your pet! 🐶
             </Text>
             <Button
               title="Stop Recording"
@@ -222,7 +222,7 @@ export default function RecordingsScreen() {
           • Use a calm, soothing voice{'\n'}
           • Keep recordings 3-10 seconds{'\n'}
           • Record in a quiet environment{'\n'}
-          • Test with your pup to see what works!
+          • Test with your pet to see what works!
         </Text>
       </Card>
     </ScrollView>

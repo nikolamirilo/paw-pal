@@ -4,41 +4,68 @@ import { BarkEvent, ListeningSession, Report, TimelinePoint } from '@/types';
 // Generate unique IDs
 const generateId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-// Group events by hour for timeline
-const groupEventsByHour = (events: BarkEvent[]): TimelinePoint[] => {
-    const hourGroups = new Map<string, { count: number; volumes: number[] }>();
+// Group events by time interval (minutes for short sessions, hours for long)
+const groupEventsByTimeInterval = (events: BarkEvent[], startTime: number, durationSeconds: number): TimelinePoint[] => {
+    const useMinutes = durationSeconds <= 3600; // Use minutes for sessions under 1 hour
+    const intervalMs = useMinutes ? 60 * 1000 : 3600 * 1000; // 1 minute or 1 hour
+
+    // Calculate how many buckets we need based on total duration
+    // We use Math.ceil + 1 to ensure we cover the entire duration plus a buffer
+    // For >2min (e.g. 2m 5s), we want 0, 1, 2, 3 to show full context
+    const totalBuckets = Math.ceil((durationSeconds * 1000) / intervalMs) + 1;
+
+    // Create time buckets
+    const timeGroups = new Map<number, { count: number; volumes: number[] }>();
 
     events.forEach((event) => {
-        const date = new Date(event.timestamp);
-        const hourKey = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}-${date.getHours()}`;
+        const eventTime = new Date(event.timestamp).getTime();
+        const elapsed = eventTime - startTime;
+        if (elapsed < 0) return; // Should not happen based on logic
 
-        const existing = hourGroups.get(hourKey) || { count: 0, volumes: [] };
+        const bucketIndex = Math.floor(elapsed / intervalMs);
+
+        const existing = timeGroups.get(bucketIndex) || { count: 0, volumes: [] };
         existing.count += 1;
         existing.volumes.push(event.dBFS);
-        hourGroups.set(hourKey, existing);
+        timeGroups.set(bucketIndex, existing);
     });
 
+    // Create timeline points
     const timeline: TimelinePoint[] = [];
-    hourGroups.forEach((data, key) => {
-        const [year, month, day, hour] = key.split('-').map(Number);
-        timeline.push({
-            timestamp: new Date(year, month, day, hour),
-            barkCount: data.count,
-            avgVolume: data.volumes.reduce((a, b) => a + b, 0) / data.volumes.length,
-        });
-    });
 
-    return timeline.sort((a, b) =>
-        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-    );
+    // Fill in all buckets for the duration of the session
+    for (let i = 0; i < totalBuckets; i++) {
+        const data = timeGroups.get(i) || { count: 0, volumes: [] };
+        timeline.push({
+            timestamp: new Date(startTime + i * intervalMs),
+            barkCount: data.count,
+            avgVolume: data.volumes.length > 0
+                ? data.volumes.reduce((a, b) => a + b, 0) / data.volumes.length
+                : 0,
+        });
+    }
+
+    return timeline;
 };
 
 // Generate report from session
 export const generateReport = (session: ListeningSession): Report => {
     const events = session.events;
     const startTime = new Date(session.startedAt).getTime();
-    const endTime = session.endedAt ? new Date(session.endedAt).getTime() : Date.now();
-    const durationSeconds = Math.floor((endTime - startTime) / 1000);
+    const sessionEndTime = session.endedAt ? new Date(session.endedAt).getTime() : Date.now();
+
+    // Determine duration: safely double check against last event timestamp
+    let calculatedDuration = Math.floor((sessionEndTime - startTime) / 1000);
+
+    if (events.length > 0) {
+        const lastEventTime = new Date(events[events.length - 1].timestamp).getTime();
+        const eventDuration = Math.ceil((lastEventTime - startTime) / 1000);
+        // Use the longer of the two to ensure graph covers all events
+        calculatedDuration = Math.max(calculatedDuration, eventDuration);
+    }
+
+    // Ensure at least 1 second to avoid div by zero
+    const durationSeconds = Math.max(calculatedDuration, 1);
 
     // Calculate stats
     const totalBarks = events.length;
@@ -59,7 +86,7 @@ export const generateReport = (session: ListeningSession): Report => {
     });
 
     // Timeline
-    const timeline = groupEventsByHour(events);
+    const timeline = groupEventsByTimeInterval(events, startTime, durationSeconds);
 
     // Comparison with previous
     const reports = useAppStore.getState().reports;
@@ -116,27 +143,27 @@ export const formatDuration = (seconds: number): string => {
 // Get dog-themed message based on improvement
 export const getImprovementMessage = (report: Report): string => {
     if (!report.comparisonWithPrevious) {
-        return "First session! Let's see how your floofer does! 🐕";
+        return "First session! Let's see how your pet does! 🐶";
     }
 
     const { barkCountChange, isImprovement } = report.comparisonWithPrevious;
 
     if (isImprovement) {
         if (barkCountChange < -30) {
-            return "Paw-some progress! Your pup is becoming a zen master! 🧘‍♂️🐕";
+            return "Paw-some progress! Your pet is becoming a zen master! 🧘‍♂️🐶";
         }
         if (barkCountChange < -15) {
-            return "Woof-derful! Your floofer is calming down! Treats deserved! 🦴";
+            return "Woof-derful! Your pet is calming down! Treats deserved! 🦴";
         }
         return "Good progress! A few less woofs today! 🐾";
     } else {
         if (barkCountChange > 30) {
-            return "Ruh-roh! Extra woofs today. Maybe they saw a squirrel? 🐿️";
+            return "Uh-oh! Extra woofs today. Maybe they saw a squirrel? 🐿️";
         }
         if (barkCountChange > 15) {
-            return "A bit more barky today. Extra belly rubs needed! 🐕";
+            return "A bit more barky today. Extra belly rubs needed! 🐶";
         }
-        return "Similar to last time. Keep at it, hooman! 💪";
+        return "Similar to last time. Keep at it, human! 💪";
     }
 };
 

@@ -36,16 +36,45 @@ export function BarkTimelineChart({ report }: BarkTimelineChartProps) {
         );
     }
 
+    // Calculate session duration in minutes
+    const durationMinutes = report.duration / 60;
+    const useMinutes = durationMinutes <= 60; // Use minutes for sessions under 1 hour
+
+    // Get the session start time
+    const sessionStart = new Date(report.timeline[0].timestamp).getTime();
+
+    // Create labels based on elapsed time from session start
     const labels = report.timeline.map((point) => {
-        const date = new Date(point.timestamp);
-        return `${date.getHours()}:00`;
+        const elapsed = (new Date(point.timestamp).getTime() - sessionStart) / 1000; // seconds
+        if (useMinutes) {
+            // Show minutes for short sessions
+            const minutes = Math.floor(elapsed / 60);
+            return `${minutes}m`;
+        } else {
+            // Show hours for long sessions
+            const hours = (elapsed / 3600).toFixed(1);
+            return `${hours}h`;
+        }
     });
 
+    // Get max bark count to configure y-axis
+    const maxBarks = Math.max(...report.timeline.map(p => p.barkCount), 1);
+
+    // Determine y-axis segment count based on max value
+    let segments = 5;
+    if (maxBarks <= 10) {
+        segments = maxBarks; // Show each count for small numbers
+    } else if (maxBarks <= 20) {
+        segments = 4;
+    } else {
+        segments = 5;
+    }
+
     const data = {
-        labels: labels.slice(-6), // Show last 6 data points
+        labels: labels, // Show all data points
         datasets: [
             {
-                data: report.timeline.slice(-6).map((point) => point.barkCount),
+                data: report.timeline.map((point) => point.barkCount),
                 color: (opacity = 1) => `rgba(255, 140, 66, ${opacity})`,
                 strokeWidth: 3,
             },
@@ -54,14 +83,21 @@ export function BarkTimelineChart({ report }: BarkTimelineChartProps) {
 
     return (
         <View style={styles.chartContainer}>
-            <Text style={styles.chartTitle}>📈 Bark Timeline</Text>
+            <Text style={styles.chartTitle}>
+                📈 Bark Timeline {useMinutes ? '(minutes)' : '(hours)'}
+            </Text>
             <LineChart
                 data={data}
                 width={screenWidth}
-                height={180}
-                chartConfig={chartConfig}
+                height={220}
+                chartConfig={{
+                    ...chartConfig,
+                    decimalPlaces: 0,
+                }}
                 bezier
                 style={styles.chart}
+                segments={segments}
+                fromZero={true}
             />
         </View>
     );
@@ -78,7 +114,7 @@ export function LevelBreakdownChart({ levelBreakdown }: LevelBreakdownChartProps
     if (total === 0) {
         return (
             <View style={styles.emptyChart}>
-                <Text style={styles.emptyText}>No woofs recorded yet! 🐕</Text>
+                <Text style={styles.emptyText}>No woofs recorded yet! 🐶</Text>
             </View>
         );
     }
@@ -133,10 +169,10 @@ export function ImprovementIndicator({ comparison }: ImprovementIndicatorProps) 
     if (!comparison) {
         return (
             <View style={styles.improvementContainer}>
-                <Text style={styles.improvementEmoji}>🐕</Text>
+                <Text style={styles.improvementEmoji}>🐶</Text>
                 <Text style={styles.improvementTitle}>First Session!</Text>
                 <Text style={styles.improvementText}>
-                    Keep tracking to see your pup's progress!
+                    Keep tracking to see your pet's progress!
                 </Text>
             </View>
         );
@@ -150,7 +186,7 @@ export function ImprovementIndicator({ comparison }: ImprovementIndicatorProps) 
             isImprovement ? styles.improvementPositive : styles.improvementNegative,
         ]}>
             <Text style={styles.improvementEmoji}>
-                {isImprovement ? '🎉' : '🐕'}
+                {isImprovement ? '🎉' : '🐶'}
             </Text>
             <Text style={styles.improvementTitle}>
                 {isImprovement ? 'Paw-some Progress!' : 'More Woofs Today'}
@@ -168,7 +204,7 @@ export function ImprovementIndicator({ comparison }: ImprovementIndicatorProps) 
             </View>
             <Text style={styles.improvementText}>
                 {isImprovement
-                    ? 'Your floofer is getting calmer! Treats deserved! 🦴'
+                    ? 'Your pet is getting calmer! Treats deserved! 🦴'
                     : 'Maybe they saw a squirrel? Extra belly rubs needed! 🐿️'}
             </Text>
         </View>

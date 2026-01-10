@@ -6,8 +6,8 @@ import 'react-native-reanimated';
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
-// Custom light theme for Barko
-const BarkoLightTheme = {
+// Custom light theme for Paw Pal
+const PawPalLightTheme = {
   ...DefaultTheme,
   colors: {
     ...DefaultTheme.colors,
@@ -19,8 +19,8 @@ const BarkoLightTheme = {
   },
 };
 
-// Custom dark theme for Barko
-const BarkoDarkTheme = {
+// Custom dark theme for Paw Pal
+const PawPalDarkTheme = {
   ...DarkTheme,
   colors: {
     ...DarkTheme.colors,
@@ -40,13 +40,13 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? BarkoDarkTheme : BarkoLightTheme}>
+    <ThemeProvider value={colorScheme === 'dark' ? PawPalDarkTheme : PawPalLightTheme}>
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
 
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       </Stack>
       <StatusBar style="auto" />
-    </ThemeProvider>
+    </ThemeProvider >
   );
 }
