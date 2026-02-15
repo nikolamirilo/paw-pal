@@ -108,9 +108,8 @@ export const DogText = {
     noRecording: 'No recording yet',
 
     // Level descriptions
-    levelGentleWoof: 'Gentle Woof 🦴',
-    levelMediumBark: 'Medium Bark 🦴🦴',
-    levelBigBark: 'Big Bark 🦴🦴🦴',
+    levelGentleWoof: 'Gentle Woof',
+    levelBigBark: 'Big Bark',
 
     // Loading states
     loadingData: 'Sniffing the data...',

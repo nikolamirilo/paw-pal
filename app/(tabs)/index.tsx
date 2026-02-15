@@ -1,11 +1,12 @@
 import { Card } from '@/components/ui/Card';
 import { PawIcon } from '@/components/ui/PawIcon';
 import { BorderRadius, Colors, DogText, FontSizes, FontWeights, Spacing } from '@/constants/Colors';
-import { useDogProfile, useIsListening, useReports } from '@/store/appStore';
+import { useDogProfile, useIsListening, useRecordings, useReports, useSettings } from '@/store/appStore';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import {
+  Alert,
   Dimensions,
   Image,
   ScrollView,
@@ -29,6 +30,8 @@ export default function HomeScreen() {
   const dogProfile = useDogProfile();
   const reports = useReports();
   const isListening = useIsListening();
+  const recordings = useRecordings();
+  const settings = useSettings();
 
   // Animation for the main button
   const buttonScale = useSharedValue(1);
@@ -89,6 +92,25 @@ export default function HomeScreen() {
     : 'No sessions yet';
 
   const handleStartListening = () => {
+    // Check if sounds are recorded for all bark levels
+    const requiredLevels = Array.from({ length: settings.thresholds.length }, (_, i) => i + 1);
+    const missingLevels = requiredLevels.filter(level =>
+      !recordings.some(r => r.level === level)
+    );
+
+    if (missingLevels.length > 0) {
+      Alert.alert(
+        'Setup Required 🎵',
+        'Please record calming sounds for your pet before starting. Tap OK to go to recordings.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'OK', onPress: () => router.push('/explore') }
+        ]
+      );
+      return;
+    }
+
+    // All sounds recorded, navigate to listening page
     router.push('/listening');
   };
 

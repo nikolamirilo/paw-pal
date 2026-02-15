@@ -1,24 +1,23 @@
 import { RecordButton, RecordingSlot } from '@/components/recordings/RecordingComponents';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { BorderRadius, Colors, DogText, FontSizes, FontWeights, Spacing } from '@/constants/Colors';
+import { Colors, DogText, FontSizes, FontWeights, Spacing } from '@/constants/Colors';
 import { audioService } from '@/services/audioService';
 import { useAppStore } from '@/store/appStore';
-import { BarkLevel, Recording } from '@/types';
+import { BarkLevel, COOLDOWN_OPTIONS, Recording } from '@/types';
 import React, { useEffect, useState } from 'react';
 import {
   Alert,
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
-  View,
+  View
 } from 'react-native';
 
-const DEFAULT_SLOTS: BarkLevel[] = [1, 2, 3];
+const DEFAULT_SLOTS: BarkLevel[] = [1, 2];
 
 export default function RecordingsScreen() {
-  const { recordings, addRecording, deleteRecording, updateRecording } = useAppStore();
+  const { recordings, addRecording, deleteRecording, updateRecording, settings, updateSettings } = useAppStore();
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [currentRecordingLevel, setCurrentRecordingLevel] = useState<BarkLevel | null>(null);
@@ -78,11 +77,25 @@ export default function RecordingsScreen() {
         );
         addRecording(newRecording);
 
-        Alert.alert(
-          'Paw-some! 🎉',
-          DogText.recordingSaved,
-          [{ text: 'Woof!' }]
-        );
+        // Check if recording duration exceeds current cooldown
+        const durationWithBuffer = Math.ceil(newRecording.duration + 2);
+        const nextStandard = COOLDOWN_OPTIONS.find(opt => opt >= durationWithBuffer);
+        const newCooldown = nextStandard || durationWithBuffer;
+
+        if (newCooldown > settings.cooldownSeconds) {
+          updateSettings({ cooldownSeconds: newCooldown });
+          Alert.alert(
+            'Paw-some! 🎉',
+            `${DogText.recordingSaved}\n\nCooldown increased to ${newCooldown}s (next available option) to match your recording.`,
+            [{ text: 'Woof!' }]
+          );
+        } else {
+          Alert.alert(
+            'Paw-some! 🎉',
+            DogText.recordingSaved,
+            [{ text: 'Woof!' }]
+          );
+        }
       }
     } catch (error) {
       Alert.alert(
@@ -131,18 +144,7 @@ export default function RecordingsScreen() {
     );
   };
 
-  const handleAddSlot = () => {
-    const nextLevel = (Math.max(...slots) + 1) as BarkLevel;
-    if (nextLevel <= 10) {
-      setSlots([...slots, nextLevel]);
-    } else {
-      Alert.alert(
-        'Max Slots Reached! 🐾',
-        'You have reached the maximum number of calming sound slots.',
-        [{ text: 'OK' }]
-      );
-    }
-  };
+
 
   const getLevelName = (level: BarkLevel): string => {
     switch (level) {
@@ -208,11 +210,7 @@ export default function RecordingsScreen() {
             );
           })}
 
-          {/* Add More Slots */}
-          <TouchableOpacity style={styles.addSlotButton} onPress={handleAddSlot}>
-            <Text style={styles.addSlotIcon}>➕</Text>
-            <Text style={styles.addSlotText}>{DogText.addRecording}</Text>
-          </TouchableOpacity>
+
         </View>
       )}
 
@@ -279,26 +277,7 @@ const styles = StyleSheet.create({
   slotsContainer: {
     marginBottom: Spacing.lg,
   },
-  addSlotButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.sm,
-    paddingVertical: Spacing.lg,
-    borderWidth: 2,
-    borderStyle: 'dashed',
-    borderColor: Colors.border,
-    borderRadius: BorderRadius.lg,
-    backgroundColor: Colors.cardLight,
-  },
-  addSlotIcon: {
-    fontSize: 24,
-  },
-  addSlotText: {
-    fontSize: FontSizes.md,
-    color: Colors.primary,
-    fontWeight: FontWeights.semibold,
-  },
+
   tipsCard: {
     backgroundColor: Colors.secondary + '15',
   },

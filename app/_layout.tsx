@@ -1,12 +1,14 @@
+import { Colors } from '@/constants/Colors';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import LogRocket from '@logrocket/react-native';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
 import 'react-native-reanimated';
 
-import { Colors } from '@/constants/Colors';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 
-// Custom light theme for Paw Pal
+
 const PawPalLightTheme = {
   ...DefaultTheme,
   colors: {
@@ -19,7 +21,6 @@ const PawPalLightTheme = {
   },
 };
 
-// Custom dark theme for Paw Pal
 const PawPalDarkTheme = {
   ...DarkTheme,
   colors: {
@@ -38,6 +39,18 @@ export const unstable_settings = {
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+
+  useEffect(() => {
+    try {
+      LogRocket.init('elfuy9/paw-pal');
+      LogRocket.getSessionURL(url => {
+        console.log('LogRocket session URL: ' + url);
+      });
+    } catch (e) {
+      // LogRocket only works in native builds, fail silently in Expo Go
+      console.log('LogRocket disabled in this environment');
+    }
+  }, []);
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? PawPalDarkTheme : PawPalLightTheme}>

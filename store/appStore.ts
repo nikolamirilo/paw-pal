@@ -95,16 +95,36 @@ export const useAppStore = create<AppState>()(
                 recordings: state.recordings,
                 reports: state.reports,
             }),
-            version: 1,
+            version: 3,
             migrate: (persistedState: any, version: number) => {
                 if (version === 0) {
                     // Migration from v0 to v1: convert thresholds object to array
                     if (persistedState.settings && persistedState.settings.thresholds && !Array.isArray(persistedState.settings.thresholds)) {
                         const old = persistedState.settings.thresholds;
                         persistedState.settings.thresholds = [
-                            { id: '1', name: 'Level 1', value: old.level1 || 1600 },
-                            { id: '2', name: 'Level 2', value: old.level2 || 2400 },
-                            { id: '3', name: 'Level 3', value: old.level3 || 3000 },
+                            { id: '1', name: 'Gentle Woof', value: -30 },
+                            { id: '2', name: 'Big Bark', value: -15 },
+                        ];
+                    }
+                }
+                if (version < 3) {
+                    // Migration to v3: fix to 2 levels with dBFS values
+                    // Any existing RMS values (positive numbers) get replaced with dBFS defaults
+                    if (persistedState.settings && Array.isArray(persistedState.settings.thresholds)) {
+                        const existing = persistedState.settings.thresholds;
+                        const val0 = existing[0]?.value;
+                        const val1 = existing[1]?.value;
+                        // If values are positive, they're RMS — convert to defaults
+                        const isRMS = (v: number) => v > 0;
+                        persistedState.settings.thresholds = [
+                            { id: '1', name: 'Gentle Woof', value: (val0 !== undefined && !isRMS(val0)) ? val0 : -30 },
+                            { id: '2', name: 'Big Bark', value: (val1 !== undefined && !isRMS(val1)) ? val1 : -15 },
+                        ];
+                    } else {
+                        persistedState.settings = persistedState.settings || {};
+                        persistedState.settings.thresholds = [
+                            { id: '1', name: 'Gentle Woof', value: -30 },
+                            { id: '2', name: 'Big Bark', value: -15 },
                         ];
                     }
                 }

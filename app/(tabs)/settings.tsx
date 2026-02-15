@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { BorderRadius, Colors, DogText, FontSizes, FontWeights, Spacing } from '@/constants/Colors';
-import { useAppStore } from '@/store/appStore';
+import { useAppStore, useRecordings } from '@/store/appStore';
 import { DEFAULT_SETTINGS } from '@/types';
 import Slider from '@react-native-community/slider';
 import { Audio } from 'expo-av';
@@ -18,8 +18,21 @@ import {
     View
 } from 'react-native';
 
+// Convert dBFS (-60 to -10) to a user-friendly 1-100% scale
+// This range ensures only very loud sounds (screaming) reach 100%
+// Normal speech: ~40-60%, Loud barks: ~70-85%, Screaming: ~95-100%
+const dBToPercent = (dB: number): number => {
+    const pct = Math.round(((dB + 60) / 50) * 100);
+    return Math.max(1, Math.min(100, pct));
+};
+const percentToDB = (pct: number): number => {
+    const clampedPct = Math.max(1, Math.min(100, pct));
+    return Math.round((clampedPct / 100) * 50 - 60);
+};
+
 export default function SettingsScreen() {
     const { dogProfile, setDogProfile, settings, updateSettings, reports } = useAppStore();
+    const recordings = useRecordings();
 
     const [dogName, setDogName] = useState(dogProfile.name);
     const [thresholds, setThresholds] = useState(() => {
@@ -30,7 +43,10 @@ export default function SettingsScreen() {
         return DEFAULT_SETTINGS.thresholds;
     });
     const [cooldown, setCooldown] = useState(settings.cooldownSeconds);
-    const [playingLevel, setPlayingLevel] = useState<string | null>(null);
+
+    const [calibratingLevel, setCalibratingLevel] = useState<number | null>(null);
+    const [peakDB, setPeakDB] = useState(-160);
+    const [calibrationRecording, setCalibrationRecording] = useState<Audio.Recording | null>(null);
 
     // Effect to fix corrupted state (if hot reload preserved legacy object state)
     useEffect(() => {
@@ -39,100 +55,163 @@ export default function SettingsScreen() {
         }
     }, [thresholds]);
 
-    // Function to play a test woof sound at the given RMS level
-    const playTestWoof = async (levelId: string, rmsValue: number) => {
+    // Check for dynamic cooldown updates based on recordings
+    useEffect(() => {
+        if (recordings.length === 0) return;
+
+        // Find max duration among active recordings
+        const maxDuration = Math.max(...recordings.map(r => r.duration));
+        const minRequired = Math.ceil(maxDuration + 2); // Add 2s buffer
+
+        if (minRequired > settings.cooldownSeconds) {
+            updateSettings({ cooldownSeconds: minRequired });
+            setCooldown(minRequired);
+            Alert.alert(
+                'Cooldown Updated ⏱️',
+                `Cooldown automatically increased to ${minRequired}s to match your longest recording.`
+            );
+        }
+    }, [recordings, settings.cooldownSeconds]);
+
+
+    // Auto-save dog name with debounce
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (dogName !== dogProfile.name) {
+                setDogProfile({ ...dogProfile, name: dogName });
+            }
+        }, 500);
+
+        return () => clearTimeout(timer);
+    }, [dogName, dogProfile, setDogProfile]);
+
+    const handleResetThresholds = () => {
+        Alert.alert(
+            'Reset to Defaults? 🔄',
+            'This will reset bark levels to their default values.',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Reset',
+                    onPress: () => {
+                        setThresholds(DEFAULT_SETTINGS.thresholds);
+                        updateSettings({ thresholds: DEFAULT_SETTINGS.thresholds });
+                        Alert.alert('Done! 🐾', 'Bark levels have been reset to defaults.');
+                    },
+                },
+            ]
+        );
+    };
+
+    const handleStartCalibration = async (levelIndex: number) => {
         try {
-            setPlayingLevel(levelId);
+            const permission = await Audio.requestPermissionsAsync();
+            if (!permission.granted) {
+                Alert.alert('Permission Needed', 'Microphone access is required for calibration.');
+                return;
+            }
 
-            // Calculate volume based on RMS value (500-5000 range)
-            const volumeScale = Math.min((rmsValue - 500) / 4500, 1); // Normalize to 0-1
-            const volume = 0.3 + (volumeScale * 0.5); // Range from 0.3 to 0.8
+            // Clean up any existing recording first (expo-av only allows one at a time)
+            if (calibrationRecording) {
+                try {
+                    calibrationRecording.setOnRecordingStatusUpdate(null);
+                    await calibrationRecording.stopAndUnloadAsync();
+                } catch (e) {
+                    // Already stopped, ignore
+                }
+                setCalibrationRecording(null);
+            }
 
-            // Get the level index and name for display
-            const levelIndex = thresholds.findIndex(t => t.id === levelId);
-            const levelName = thresholds[levelIndex]?.name || 'Level';
-
-            // Determine bark intensity description
-            const barkIntensity = volumeScale < 0.33 ? 'Gentle woof 🐕' :
-                volumeScale < 0.66 ? 'Medium bark 🐶' :
-                    'Big bark! 🦮';
-
-            // Set audio mode for playback
             await Audio.setAudioModeAsync({
-                allowsRecordingIOS: false,
+                allowsRecordingIOS: true,
                 playsInSilentModeIOS: true,
                 staysActiveInBackground: false,
-                shouldDuckAndroid: false,
             });
 
-            try {
-                // Play the dog bark sound at the calculated volume
-                const { sound } = await Audio.Sound.createAsync(
-                    require('@/assets/sounds/dog-bark.mp3'),
-                    {
-                        volume: volume,
-                        shouldPlay: true,
-                        isLooping: false,
-                    }
-                );
+            setPeakDB(-160);
+            setCalibratingLevel(levelIndex);
 
-                // Show visual feedback
-                Alert.alert(
-                    `🔊 ${levelName}`,
-                    `${barkIntensity}\nIntensity: ${Math.round(volumeScale * 100)}%\nVolume: ${Math.round(volume * 100)}%`,
-                    [{ text: 'OK' }]
-                );
-
-                // Clean up after playback
-                sound.setOnPlaybackStatusUpdate((status) => {
-                    if (status.isLoaded && status.didJustFinish) {
-                        sound.unloadAsync();
-                        setPlayingLevel(null);
-                    }
-                });
-
-                // Fallback cleanup after 3 seconds
-                setTimeout(async () => {
-                    try {
-                        await sound.unloadAsync();
-                    } catch (e) {
-                        console.log('Sound already unloaded');
-                    }
-                    setPlayingLevel(null);
-                }, 3000);
-            } catch (soundError) {
-                console.error('Could not play sound:', soundError);
-                Alert.alert(
-                    '⚠️ Playback Error',
-                    'Could not play the dog bark sound. Please check the audio file.',
-                    [{ text: 'OK' }]
-                );
-                setPlayingLevel(null);
-            }
-        } catch (error) {
-            console.error('Error in playTestWoof:', error);
-            Alert.alert(
-                'Error',
-                'Could not test sound. Please try again.',
-                [{ text: 'OK' }]
+            const { recording } = await Audio.Recording.createAsync(
+                {
+                    ...Audio.RecordingOptionsPresets.HIGH_QUALITY,
+                    isMeteringEnabled: true,
+                }
             );
-            setPlayingLevel(null);
+
+            setCalibrationRecording(recording);
+
+            // Listen for metering updates to track peak dBFS
+            let localPeak = -160;
+            recording.setOnRecordingStatusUpdate((status) => {
+                if (status.isRecording && status.metering !== undefined) {
+                    const dB = status.metering;
+                    if (dB > localPeak) {
+                        localPeak = dB;
+                        setPeakDB(Math.round(localPeak));
+                    }
+                }
+            });
+            await recording.setProgressUpdateInterval(100);
+        } catch (error) {
+            console.error('Error starting calibration:', error);
+            Alert.alert('Error', 'Could not start calibration recording.');
+            setCalibratingLevel(null);
         }
     };
 
-    const handleSaveDogName = () => {
-        setDogProfile({ ...dogProfile, name: dogName });
-        Alert.alert('Saved! 🐾', `Your pet is now named ${dogName} !`);
+    const handleStopCalibration = async (levelIndex: number) => {
+        try {
+            if (calibrationRecording) {
+                calibrationRecording.setOnRecordingStatusUpdate(null);
+                await calibrationRecording.stopAndUnloadAsync();
+                setCalibrationRecording(null);
+            }
+
+            if (peakDB > -160) {
+                // Validate ordering: level 1 value must be < level 2 value (more negative)
+                const newThresholds = [...thresholds];
+                const otherIndex = levelIndex === 0 ? 1 : 0;
+                const otherValue = newThresholds[otherIndex].value;
+
+                if (levelIndex === 0 && peakDB >= otherValue) {
+                    Alert.alert(
+                        'Ordering Issue 🐾',
+                        `The calibrated value (${dBToPercent(peakDB)}%) is too loud for Gentle Woof. It must be lower than Big Bark (${dBToPercent(otherValue)}%). Try a gentler sound.`,
+                        [{ text: 'OK' }]
+                    );
+                } else if (levelIndex === 1 && peakDB <= newThresholds[0].value) {
+                    Alert.alert(
+                        'Oops! ',
+                        'Big bark must be louder than gentle bark. Please record again.',
+                        [{ text: 'OK' }]
+                    );
+                } else {
+                    // Clamp to valid range (-60 to -10 dBFS)
+                    const clampedValue = Math.max(-60, Math.min(-10, peakDB));
+                    newThresholds[levelIndex] = { ...newThresholds[levelIndex], value: clampedValue };
+                    setThresholds(newThresholds);
+                    // Auto-save thresholds after calibration
+                    updateSettings({ thresholds: newThresholds });
+                    Alert.alert(
+                        'Calibrated! 🎤',
+                        `${newThresholds[levelIndex].name} threshold set to ${dBToPercent(clampedValue)}% based on your recording.`,
+                        [{ text: 'Paw-some!' }]
+                    );
+                }
+            } else {
+                Alert.alert('No Sound Detected', 'No significant sound was detected during calibration. Please try again with a louder sound.');
+            }
+        } catch (error) {
+            console.error('Error stopping calibration:', error);
+        } finally {
+            setCalibratingLevel(null);
+            setPeakDB(-160);
+        }
     };
 
-    const handleSaveThresholds = () => {
-        updateSettings({ thresholds });
-        Alert.alert('Paw-fect! 🐶', 'Bark thresholds have been updated.');
-    };
-
-    const handleSaveCooldown = () => {
-        updateSettings({ cooldownSeconds: cooldown });
-        Alert.alert('Done! ⏱️', `Cooldown set to ${cooldown} seconds.`);
+    const handleCooldownChange = (seconds: number) => {
+        setCooldown(seconds);
+        updateSettings({ cooldownSeconds: seconds });
     };
 
     const handleClearData = () => {
@@ -168,7 +247,9 @@ export default function SettingsScreen() {
         }
     };
 
-    const cooldownOptions = [5, 10, 15, 20, 30];
+    // Generate cooldown options, ensuring current value is included
+    const baseOptions = [5, 10, 15, 20, 30];
+    const cooldownOptions = [...new Set([...baseOptions, settings.cooldownSeconds])].sort((a, b) => a - b);
     const safeThresholds = Array.isArray(thresholds) ? thresholds : DEFAULT_SETTINGS.thresholds;
 
     return (
@@ -181,9 +262,22 @@ export default function SettingsScreen() {
 
             {/* Dog Profile */}
             <Card emoji="🐾" title="Your Pet" style={styles.card}>
-                <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Name</Text>
-                    <View style={styles.inputRow}>
+                <View style={styles.petProfileContainer}>
+                    <TouchableOpacity onPress={pickImage} style={styles.avatarWrapper}>
+                        {dogProfile.avatarUri ? (
+                            <Image source={{ uri: dogProfile.avatarUri }} style={styles.avatarSmall} />
+                        ) : (
+                            <View style={styles.avatarPlaceholderSmall}>
+                                <Text style={styles.avatarPlaceholderTextSmall}>🐶</Text>
+                            </View>
+                        )}
+                        <View style={styles.editBadgeSmall}>
+                            <Text style={styles.editBadgeTextSmall}>✎</Text>
+                        </View>
+                    </TouchableOpacity>
+
+                    <View style={styles.nameInputContainer}>
+                        <Text style={styles.label}>Name</Text>
                         <TextInput
                             style={styles.textInput}
                             value={dogName}
@@ -191,143 +285,103 @@ export default function SettingsScreen() {
                             placeholder="Enter your pet's name"
                             placeholderTextColor={Colors.textMuted}
                         />
-                        <TouchableOpacity
-                            style={styles.saveButton}
-                            onPress={handleSaveDogName}
-                        >
-                            <Text style={styles.saveButtonText}>Save</Text>
-                        </TouchableOpacity>
-                    </View>
-
-                    <View style={styles.avatarSection}>
-                        <TouchableOpacity onPress={pickImage} style={styles.avatarContainer}>
-                            {dogProfile.avatarUri ? (
-                                <Image source={{ uri: dogProfile.avatarUri }} style={styles.avatar} />
-                            ) : (
-                                <View style={styles.avatarPlaceholder}>
-                                    <Text style={styles.avatarPlaceholderText}>🐶</Text>
-                                </View>
-                            )}
-                            <View style={styles.editBadge}>
-                                <Text style={styles.editBadgeText}>✎</Text>
-                            </View>
-                        </TouchableOpacity>
-                        <Text style={styles.avatarHint}>Tap to set pet image</Text>
                     </View>
                 </View>
+                <Text style={styles.avatarHintSmall}>Tap image to change</Text>
             </Card>
 
             {/* Bark Levels */}
             <Card emoji="🔊" title="Bark levels" style={styles.card}>
                 <Text style={styles.description}>
-                    Adjust the RMS thresholds for each bark level. Higher values mean louder barks are needed to trigger.
+                    Drag the slider or mimic your dog barks using "Calibrate with Voice" to sample bark.
                 </Text>
 
                 {safeThresholds.map((threshold, index) => (
                     <View key={threshold.id} style={styles.sliderGroup}>
                         <View style={styles.sliderHeader}>
                             <Text style={styles.sliderLabel}>
-                                {threshold.name} {index === 0 && '(Gentle Woof)'} {index === thresholds.length - 1 && index > 0 && '(Big Bark)'}
+                                {threshold.name} {index === 0} {index === 1}
                             </Text>
-                            <Text style={styles.sliderValue}>{threshold.value} RMS</Text>
+                            <Text style={styles.sliderValue}>{dBToPercent(threshold.value)}%</Text>
                         </View>
                         <View style={styles.sliderContainer}>
+
                             <Slider
                                 style={styles.slider}
-                                minimumValue={index > 0 ? thresholds[index - 1].value + 100 : 500}
-                                maximumValue={
-                                    index === thresholds.length - 1
-                                        ? 16000
-                                        : Math.min(thresholds[index + 1].value - 100, 16000)
-                                }
-                                step={100}
+                                minimumValue={percentToDB(1)}
+                                maximumValue={percentToDB(100)}
+                                step={1}
                                 value={threshold.value}
                                 onValueChange={(value) => {
-                                    // Validation: Value must be at least 100 greater than previous level
-                                    // and at least 100 less than next level (or 16000 for last level)
-                                    const prev = index > 0 ? thresholds[index - 1].value : 0;
-                                    const next = index < thresholds.length - 1 ? thresholds[index + 1].value : 16100;
+                                    const newThresholds = [...thresholds];
 
-                                    if (value >= prev + 100 && value <= next - 100) {
-                                        const newThresholds = [...thresholds];
-                                        newThresholds[index] = { ...threshold, value };
+                                    if (index === 0) {
+                                        // Level 1: clamp to max 99%
+                                        const maxLevel1 = percentToDB(99);
+                                        const clampedValue = Math.min(value, maxLevel1);
+                                        newThresholds[0] = { ...threshold, value: clampedValue };
+                                        setThresholds(newThresholds);
+                                    } else if (index === 1) {
+                                        // Level 2: must be >= Level 1's value
+                                        const minLevel2 = newThresholds[0].value;
+                                        const clampedValue = Math.max(value, minLevel2);
+                                        newThresholds[1] = { ...threshold, value: clampedValue };
                                         setThresholds(newThresholds);
                                     }
                                 }}
-                                minimumTrackTintColor={Colors.primary}
+                                minimumTrackTintColor={
+                                    index === 1 && threshold.value === thresholds[0].value
+                                        ? Colors.textLight // Gray when at minimum
+                                        : Colors.primary
+                                }
+                                onSlidingComplete={() => {
+                                    // Auto-save on slider release
+                                    updateSettings({ thresholds });
+                                }}
                             />
                         </View>
-                        {/* Test Sound Button */}
+
+                        {/* Lock disclaimer for Level 2 */}
+                        {index === 1 && (
+                            <Text style={styles.sliderHint}>
+                                🔒 Minimum: {dBToPercent(thresholds[0].value)}% (locked to Gentle Woof level)
+                            </Text>
+                        )}
+
+                        {/* Calibrate with Voice Button */}
                         <TouchableOpacity
-                            onPress={() => playTestWoof(threshold.id, threshold.value)}
+                            onPress={() => {
+                                if (calibratingLevel !== null) {
+                                    handleStopCalibration(index);
+                                } else {
+                                    handleStartCalibration(index);
+                                }
+                            }}
                             style={[
-                                styles.testSoundButton,
-                                playingLevel === threshold.id && styles.testSoundButtonActive
+                                styles.calibrateButton,
+                                calibratingLevel === index && styles.calibrateButtonActive,
                             ]}
-                            disabled={playingLevel === threshold.id}
+                            disabled={calibratingLevel !== null && calibratingLevel !== index}
                         >
-                            <Text style={styles.testSoundIcon}>🔊</Text>
-                            <Text style={styles.testSoundText}>
-                                {playingLevel === threshold.id ? 'Testing...' : 'Test Sound'}
+                            <Text style={styles.calibrateIcon}>
+                                {calibratingLevel === index ? '⏹️' : '🎤'}
+                            </Text>
+                            <Text style={[
+                                styles.calibrateText,
+                                calibratingLevel === index && styles.calibrateTextActive,
+                            ]}>
+                                {calibratingLevel === index
+                                    ? `Recording... Peak: ${dBToPercent(peakDB)}%`
+                                    : 'Calibrate with Voice'}
                             </Text>
                         </TouchableOpacity>
-                        {/* Delete Button (only if more than 1 level) */}
-                        {thresholds.length > 1 && (
-                            <TouchableOpacity
-                                onPress={() => {
-                                    Alert.alert(
-                                        'Remove Level?',
-                                        `Are you sure you want to remove ${threshold.name}?`,
-                                        [
-                                            { text: 'Cancel', style: 'cancel' },
-                                            {
-                                                text: 'Remove',
-                                                style: 'destructive',
-                                                onPress: () => {
-                                                    const newThresholds = thresholds.filter(t => t.id !== threshold.id);
-                                                    setThresholds(newThresholds);
-                                                }
-                                            }
-                                        ]
-                                    );
-                                }}
-                                style={styles.deleteLevelButton}
-                            >
-                                <Text style={styles.deleteLevelText}>Remove Level</Text>
-                            </TouchableOpacity>
-                        )}
                     </View>
                 ))}
-
                 <Button
-                    title="+ Add New Level"
-                    onPress={() => {
-                        const lastLevel = thresholds[thresholds.length - 1];
-                        // New level minimum is previous level + 100
-                        const newLevelValue = lastLevel.value + 100;
-
-                        // Ensure we don't exceed max constraint (16000)
-                        if (newLevelValue > 16000) {
-                            Alert.alert('Limit Reached', 'Cannot add levels beyond 16,000 RMS.');
-                            return;
-                        }
-
-                        const newThreshold = {
-                            id: Date.now().toString(), // Unique ID
-                            name: `Level ${thresholds.length + 1}`,
-                            value: newLevelValue
-                        };
-                        setThresholds([...thresholds, newThreshold]);
-                    }}
+                    title="Reset to Defaults"
+                    onPress={handleResetThresholds}
                     variant="secondary"
-                    style={styles.addLevelButton}
-                />
-
-                <Button
-                    title="Save"
-                    onPress={handleSaveThresholds}
-                    variant="primary"
-                    style={styles.saveThresholdsButton}
+                    style={{ marginTop: Spacing.xs }}
                 />
             </Card>
 
@@ -343,14 +397,14 @@ export default function SettingsScreen() {
                             key={option}
                             style={[
                                 styles.cooldownOption,
-                                cooldown === option && styles.cooldownOptionSelected,
+                                settings.cooldownSeconds === option && styles.cooldownOptionSelected,
                             ]}
-                            onPress={() => setCooldown(option)}
+                            onPress={() => handleCooldownChange(option)}
                         >
                             <Text
                                 style={[
                                     styles.cooldownOptionText,
-                                    cooldown === option && styles.cooldownOptionTextSelected,
+                                    settings.cooldownSeconds === option && styles.cooldownOptionTextSelected,
                                 ]}
                             >
                                 {option}s
@@ -358,13 +412,6 @@ export default function SettingsScreen() {
                         </TouchableOpacity>
                     ))}
                 </View>
-
-                <Button
-                    title="Save Cooldown"
-                    onPress={handleSaveCooldown}
-                    variant="secondary"
-                    style={styles.saveCooldownButton}
-                />
             </Card>
 
             {/* Data Management */}
@@ -444,17 +491,6 @@ const styles = StyleSheet.create({
         fontSize: FontSizes.md,
         color: Colors.textPrimary,
     },
-    saveButton: {
-        backgroundColor: Colors.primary,
-        paddingHorizontal: Spacing.lg,
-        borderRadius: BorderRadius.md,
-        justifyContent: 'center',
-    },
-    saveButtonText: {
-        color: Colors.textLight,
-        fontSize: FontSizes.md,
-        fontWeight: FontWeights.bold,
-    },
     description: {
         fontSize: FontSizes.sm,
         color: Colors.textSecondary,
@@ -494,15 +530,18 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         marginBottom: Spacing.md,
+        flexWrap: 'wrap',
+        gap: 8,
     },
     cooldownOption: {
-        flex: 1,
-        marginHorizontal: 4,
+        flexBasis: '18%', // Allow wrap if many options
+        minWidth: 50,
         paddingVertical: Spacing.sm,
         borderRadius: BorderRadius.md,
         borderWidth: 2,
         borderColor: Colors.border,
         alignItems: 'center',
+        justifyContent: 'center',
     },
     cooldownOptionSelected: {
         borderColor: Colors.secondary,
@@ -536,18 +575,33 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         lineHeight: 24,
     },
-    deleteLevelButton: {
-        alignSelf: 'flex-end',
+    calibrateButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: Colors.backgroundLight,
+        borderWidth: 1,
+        borderColor: Colors.secondary,
+        borderRadius: BorderRadius.md,
+        paddingVertical: Spacing.sm,
+        paddingHorizontal: Spacing.md,
         marginTop: Spacing.xs,
-        padding: Spacing.xs,
+        gap: Spacing.xs,
     },
-    deleteLevelText: {
-        color: Colors.danger,
+    calibrateButtonActive: {
+        backgroundColor: Colors.accent + '20',
+        borderColor: Colors.accent,
+    },
+    calibrateIcon: {
+        fontSize: FontSizes.lg,
+    },
+    calibrateText: {
         fontSize: FontSizes.sm,
-        fontWeight: FontWeights.medium,
+        color: Colors.secondary,
+        fontWeight: FontWeights.semibold,
     },
-    addLevelButton: {
-        marginBottom: Spacing.sm,
+    calibrateTextActive: {
+        color: Colors.accent,
     },
     avatarSection: {
         alignItems: 'center',
@@ -606,29 +660,66 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: 'bold',
     },
-    testSoundButton: {
+    petProfileContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center',
+        gap: Spacing.md,
+    },
+    avatarWrapper: {
+        position: 'relative',
+    },
+    avatarSmall: {
+        width: 60,
+        height: 60,
+        borderRadius: 30,
+    },
+    avatarPlaceholderSmall: {
+        width: 60,
+        height: 60,
+        borderRadius: 30,
         backgroundColor: Colors.backgroundLight,
         borderWidth: 1,
-        borderColor: Colors.primary,
-        borderRadius: BorderRadius.md,
-        paddingVertical: Spacing.sm,
-        paddingHorizontal: Spacing.md,
-        marginTop: Spacing.xs,
+        borderColor: Colors.border,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    avatarPlaceholderTextSmall: {
+        fontSize: 24,
+    },
+    editBadgeSmall: {
+        position: 'absolute',
+        bottom: -2,
+        right: -2,
+        backgroundColor: Colors.primary,
+        width: 20,
+        height: 20,
+        borderRadius: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1.5,
+        borderColor: '#FFF',
+    },
+    editBadgeTextSmall: {
+        color: '#FFF',
+        fontSize: 10,
+        fontWeight: 'bold',
+    },
+    nameInputContainer: {
+        flex: 1,
         gap: Spacing.xs,
     },
-    testSoundButtonActive: {
-        backgroundColor: Colors.primary + '20',
-        borderColor: Colors.primary,
+    avatarHintSmall: {
+        fontSize: FontSizes.xs,
+        color: Colors.textSecondary,
+        marginLeft: 74, // Approximate offset to align with text input
+        marginTop: Spacing.xs,
     },
-    testSoundIcon: {
-        fontSize: FontSizes.lg,
+    sliderHint: {
+        fontSize: FontSizes.xs,
+        color: Colors.textSecondary,
+        marginTop: Spacing.sm,
+        marginBottom: Spacing.xs,
+        fontStyle: 'italic',
     },
-    testSoundText: {
-        fontSize: FontSizes.sm,
-        color: Colors.primary,
-        fontWeight: FontWeights.semibold,
-    },
+
 });

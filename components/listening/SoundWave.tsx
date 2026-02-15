@@ -143,7 +143,7 @@ function LevelBone({ level, name, active, animated }: { level: number, name: str
     }));
 
     // Generate short label
-    const label = level === 1 ? 'Low' : level === 2 ? 'Med' : level === 3 ? 'High' : `${level}`;
+    const label = level === 1 ? 'Low' : 'High';
 
     return (
         <Animated.View style={[styles.boneWrapper, animatedStyle]}>

@@ -109,11 +109,6 @@ class BarkHandler {
 
             // Get metering info (dB value)
             const metering = status.metering ?? -160;
-
-            // Convert dB to approximate RMS (reverse of dBFS formula)
-            // dBFS = 20 * log10(rms / 32767)
-            // rms = 32767 * 10^(dBFS / 20)
-            const rms = Math.round(32767 * Math.pow(10, metering / 20));
             const dBFS = metering;
 
             // Check cooldown
@@ -125,16 +120,16 @@ class BarkHandler {
 
             this.config.onCooldownUpdate(cooldownRemaining);
 
-            // Determine bark level
-            const level = this.determineLevel(rms);
-            this.config.onLevelChange(level, rms, dBFS);
+            // Determine bark level using dBFS directly
+            const level = this.determineLevel(dBFS);
+            this.config.onLevelChange(level, dBFS, dBFS);
 
             // If bark detected and not in cooldown
             if (level !== null && cooldownRemaining <= 0) {
                 const event: BarkEvent = {
                     id: generateId(),
                     timestamp: new Date(),
-                    rms,
+                    rms: 0,
                     dBFS,
                     level,
                     soundPlayed: false,
@@ -160,7 +155,7 @@ class BarkHandler {
         }
     };
 
-    private determineLevel(rms: number): BarkLevel | null {
+    private determineLevel(dBFS: number): BarkLevel | null {
         // Refresh settings
         this.settings = useAppStore.getState().settings;
 
@@ -171,17 +166,18 @@ class BarkHandler {
             thresholdList = DEFAULT_SETTINGS.thresholds;
         }
 
-        // Sort thresholds ascending by value
+        // Sort thresholds ascending by value (dBFS: -30 before -15)
         const thresholds = [...thresholdList].sort((a, b) => a.value - b.value);
 
-        // Apply sensitivity multiplier
-        const adjustedRms = rms * this.settings.sensitivity;
+        // Apply sensitivity as dB offset (sensitivity > 1 = more sensitive = lower threshold)
+        const sensitivityOffset = (this.settings.sensitivity - 1.0) * 10; // ±10 dB range
+        const adjustedDBFS = dBFS + sensitivityOffset;
 
         let highestLevelMatch: number | null = null;
 
         for (let i = 0; i < thresholds.length; i++) {
-            if (adjustedRms > thresholds[i].value) {
-                highestLevelMatch = i + 1; // 1-based level corresponding to the i-th threshold
+            if (adjustedDBFS > thresholds[i].value) {
+                highestLevelMatch = i + 1; // 1-based level
             }
         }
 

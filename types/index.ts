@@ -86,18 +86,19 @@ export interface Report {
 // Default settings
 export const DEFAULT_SETTINGS: Settings = {
     thresholds: [
-        { id: '1', name: 'Level 1', value: 1600 },
-        { id: '2', name: 'Level 2', value: 2400 },
-        { id: '3', name: 'Level 3', value: 3000 },
+        { id: '1', name: 'Gentle Woof', value: -30 },
+        { id: '2', name: 'Big Bark', value: -15 },
     ],
-    cooldownSeconds: 10,
+    cooldownSeconds: 15,
     sensitivity: 1.0,
 };
+
+export const COOLDOWN_OPTIONS = [5, 10, 15, 20, 30];
 
 // Default dog profile
 export const DEFAULT_DOG_PROFILE: DogProfile = {
     id: 'default',
-    name: 'Good Boy',
+    name: 'Fur Friend',
     createdAt: new Date(),
 };
 

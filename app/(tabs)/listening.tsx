@@ -2,20 +2,23 @@
 import { BarkLevelIndicator, SoundWave } from '@/components/listening/SoundWave';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { Colors, DogText, FontSizes, FontWeights, Spacing } from '@/constants/Colors';
+import { BorderRadius, Colors, DogText, FontSizes, FontWeights, Spacing } from '@/constants/Colors';
 import { createBarkHandler } from '@/services/barkHandler';
 import { generateReport } from '@/services/reportService';
 import { useAppStore } from '@/store/appStore';
 import { BarkEvent, BarkLevel } from '@/types';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
     Alert,
+    Modal,
     ScrollView,
     StyleSheet,
     Text,
-    View,
+    TouchableOpacity,
+    View
 } from 'react-native';
 
 export default function ListeningScreen() {
@@ -40,6 +43,7 @@ export default function ListeningScreen() {
         barkCount: 0,
         soundsPlayed: 0,
     });
+    const [showTips, setShowTips] = useState(false);
 
     const handleBarkDetected = useCallback((event: BarkEvent) => {
         addBarkEvent(event);
@@ -59,6 +63,10 @@ export default function ListeningScreen() {
         setCooldownRemaining(remaining);
     }, []);
 
+    const handleStartWithTips = () => {
+        setShowTips(true);
+    };
+
     const handleStart = async () => {
         // Validate that we have recordings for all defined levels
         const requiredLevels = Array.from({ length: settings.thresholds.length }, (_, i) => i + 1);
@@ -75,8 +83,11 @@ export default function ListeningScreen() {
                     { text: 'Cancel', style: 'cancel' }
                 ]
             );
+            setShowTips(false);
             return;
         }
+
+        setShowTips(false);
 
         try {
             // Keep screen on while listening
@@ -176,106 +187,165 @@ export default function ListeningScreen() {
     }, [isActive, currentSession]);
 
     return (
-        <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-            {/* Header */}
-            <View style={styles.header}>
-                <Text style={styles.title}>
-                    {isActive ? DogText.listeningTitle : DogText.homeTitle}
-                </Text>
-                <Text style={styles.subtitle}>
-                    Listening to {dogProfile.name}
-                </Text>
-            </View>
+        <>
+            <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+                {/* Header */}
+                <View style={styles.header}>
+                    <Text style={styles.title}>
+                        {isActive ? DogText.listeningTitle : DogText.homeTitle}
+                    </Text>
+                    <Text style={styles.subtitle}>
+                        Listening to {dogProfile.name}
+                    </Text>
+                </View>
 
-            {/* Sound Wave Visualization */}
-            <Card variant="elevated" style={styles.visualizerCard}>
-                <SoundWave isActive={isActive} level={currentLevel} />
+                {/* Sound Wave Visualization */}
+                <Card variant="elevated" style={styles.visualizerCard}>
+                    <SoundWave isActive={isActive} level={currentLevel} />
 
-                {isActive && (
-                    <View style={styles.currentLevel}>
-                        <Text style={styles.levelLabel}>Current Level</Text>
-                        <Text style={styles.levelValue}>
-                            {currentRMS.toFixed(0)} RMS ({currentDBFS.toFixed(1)} dB)
-                        </Text>
-                    </View>
-                )}
-            </Card>
-
-            {/* Bark Level Indicator */}
-            <Card emoji="🦴" title="BARK-O-METER" style={styles.meterCard}>
-                <BarkLevelIndicator currentLevel={currentLevel} animated={isActive} />
-            </Card>
-
-            {/* Cooldown Timer */}
-            {isActive && cooldownRemaining > 0 && (
-                <Card style={styles.cooldownCard}>
-                    <View style={styles.cooldownContent}>
-                        <Text style={styles.cooldownEmoji}>⏱️</Text>
-                        <View>
-                            <Text style={styles.cooldownLabel}>Cooldown Active</Text>
-                            <Text style={styles.cooldownValue}>
-                                {cooldownRemaining.toFixed(1)}s remaining
+                    {isActive && (
+                        <View style={styles.currentLevel}>
+                            <Text style={styles.levelLabel}>Current Level</Text>
+                            <Text style={styles.levelValue}>
+                                {Math.max(1, Math.round(((currentDBFS + 60) / 50) * 100))}%
                             </Text>
                         </View>
-                    </View>
+                    )}
                 </Card>
-            )}
 
-            {/* Session Stats */}
-            {isActive && (
-                <Card emoji="📊" title="This Session" style={styles.statsCard}>
-                    <View style={styles.statsGrid}>
-                        <View style={styles.statItem}>
-                            <Text style={styles.statValue}>{duration}</Text>
-                            <Text style={styles.statLabel}>Duration</Text>
-                        </View>
-                        <View style={styles.statItem}>
-                            <Text style={styles.statValue}>{sessionStats.barkCount}</Text>
-                            <Text style={styles.statLabel}>Woofs</Text>
-                        </View>
-                        <View style={styles.statItem}>
-                            <Text style={styles.statValue}>{sessionStats.soundsPlayed}</Text>
-                            <Text style={styles.statLabel}>Sounds</Text>
-                        </View>
-                    </View>
+                {/* Bark Level Indicator */}
+                <Card emoji="🦴" title="BARK-O-METER" style={styles.meterCard}>
+                    <BarkLevelIndicator currentLevel={currentLevel} animated={isActive} />
                 </Card>
-            )}
 
-            {/* Action Button */}
-            <View style={styles.actionContainer}>
-                {isActive ? (
-                    <Button
-                        title={DogText.stopListening}
-                        onPress={handleStop}
-                        variant="danger"
-                        size="large"
-                        style={styles.actionButton}
-                    />
-                ) : (
-                    <Button
-                        title={DogText.startListening}
-                        onPress={handleStart}
-                        variant="primary"
-                        size="large"
-                        style={styles.actionButton}
-                    />
+                {/* Cooldown Timer */}
+                {isActive && cooldownRemaining > 0 && (
+                    <Card style={styles.cooldownCard}>
+                        <View style={styles.cooldownContent}>
+                            <Text style={styles.cooldownEmoji}>⏱️</Text>
+                            <View>
+                                <Text style={styles.cooldownLabel}>Cooldown Active</Text>
+                                <Text style={styles.cooldownValue}>
+                                    {cooldownRemaining.toFixed(1)}s remaining
+                                </Text>
+                            </View>
+                        </View>
+                    </Card>
                 )}
-            </View>
 
-            {/* Instructions */}
-            {!isActive && (
-                <Card style={styles.instructionsCard}>
-                    <Text style={styles.instructionsTitle}>How it works 🐾</Text>
-                    <Text style={styles.instructionsText}>
-                        1. Tap "Start Sniffing" to begin listening{'\n'}
-                        2. Paw Pal will detect when your pet barks{'\n'}
-                        3. Calming sounds play automatically{'\n'}
-                        4. View detailed reports after each session
-                    </Text>
-                </Card>
-            )}
+                {/* Session Stats */}
+                {isActive && (
+                    <Card emoji="📊" title="This Session" style={styles.statsCard}>
+                        <View style={styles.statsGrid}>
+                            <View style={styles.statItem}>
+                                <Text style={styles.statValue}>{duration}</Text>
+                                <Text style={styles.statLabel}>Duration</Text>
+                            </View>
+                            <View style={styles.statItem}>
+                                <Text style={styles.statValue}>{sessionStats.barkCount}</Text>
+                                <Text style={styles.statLabel}>Woofs</Text>
+                            </View>
+                            <View style={styles.statItem}>
+                                <Text style={styles.statValue}>{sessionStats.soundsPlayed}</Text>
+                                <Text style={styles.statLabel}>Sounds</Text>
+                            </View>
+                        </View>
+                    </Card>
+                )}
 
-        </ScrollView>
+                {/* Action Button */}
+                <View style={styles.actionContainer}>
+                    {isActive ? (
+                        <Button
+                            title={DogText.stopListening}
+                            onPress={handleStop}
+                            variant="danger"
+                            size="large"
+                            style={styles.actionButton}
+                        />
+                    ) : (
+                        <Button
+                            title={DogText.startListening}
+                            onPress={handleStartWithTips}
+                            variant="primary"
+                            size="large"
+                            style={styles.actionButton}
+                        />
+                    )}
+                </View>
+
+                {/* Instructions */}
+                {!isActive && (
+                    <Card style={styles.instructionsCard}>
+                        <Text style={styles.instructionsTitle}>How it works 🐾</Text>
+                        <Text style={styles.instructionsText}>
+                            1. Tap "Start Sniffing" to begin listening{'\n'}
+                            2. Paw Pal will detect when your pet barks{'\n'}
+                            3. Calming sounds play automatically{'\n'}
+                            4. View detailed reports after each session
+                        </Text>
+                    </Card>
+                )}
+
+            </ScrollView>
+
+            {/* Tips Modal */}
+            <Modal
+                visible={showTips}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setShowTips(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <Text style={styles.modalTitle}>Before You Start 🐾</Text>
+
+                        <View style={styles.tipItem}>
+                            <Text style={styles.tipItemIcon}>🔊</Text>
+                            <Text style={styles.tipItemText}>
+                                Make sure your phone's sound is turned on and volume is up
+                            </Text>
+                        </View>
+
+                        <View style={styles.tipItem}>
+                            <Text style={styles.tipItemIcon}>🔒</Text>
+                            <Text style={styles.tipItemText}>
+                                Adjust your settings so your phone does not automatically lock
+                            </Text>
+                        </View>
+
+                        <View style={styles.tipItem}>
+                            <Text style={styles.tipItemIcon}>📱</Text>
+                            <Text style={styles.tipItemText}>
+                                Place your phone somewhere it will always be near your dog and let them enjoy time with their new digital friend
+                            </Text>
+                        </View>
+
+                        <TouchableOpacity
+                            style={styles.modalButton}
+                            onPress={handleStart}
+                            activeOpacity={0.8}
+                        >
+                            <LinearGradient
+                                colors={[Colors.primaryLight, Colors.primary]}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 1 }}
+                                style={styles.modalButtonGradient}
+                            >
+                                <Text style={styles.modalButtonText}>Start Listening 🎧</Text>
+                            </LinearGradient>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            onPress={() => setShowTips(false)}
+                            style={styles.modalCancelButton}
+                        >
+                            <Text style={styles.modalCancelText}>Cancel</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+        </>
     );
 }
 
@@ -386,5 +456,78 @@ const styles = StyleSheet.create({
         fontSize: FontSizes.md,
         color: Colors.textSecondary,
         lineHeight: 24,
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: Spacing.lg,
+    },
+    modalContent: {
+        backgroundColor: Colors.backgroundLight,
+        borderRadius: BorderRadius.xl,
+        padding: Spacing.xl,
+        width: '100%',
+        maxWidth: 380,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.25,
+        shadowRadius: 20,
+        elevation: 20,
+    },
+    modalTitle: {
+        fontSize: FontSizes.xl,
+        fontWeight: FontWeights.bold,
+        color: Colors.textPrimary,
+        textAlign: 'center',
+        marginBottom: Spacing.lg,
+    },
+    tipItem: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: Spacing.md,
+        marginBottom: Spacing.md,
+        backgroundColor: Colors.primary + '08',
+        padding: Spacing.md,
+        borderRadius: BorderRadius.md,
+        borderLeftWidth: 3,
+        borderLeftColor: Colors.primary,
+    },
+    tipItemIcon: {
+        fontSize: 22,
+        marginTop: 2,
+    },
+    tipItemText: {
+        flex: 1,
+        fontSize: FontSizes.md,
+        color: Colors.textPrimary,
+        lineHeight: 22,
+        fontWeight: FontWeights.medium,
+    },
+    modalButton: {
+        marginTop: Spacing.lg,
+        borderRadius: BorderRadius.lg,
+        overflow: 'hidden',
+    },
+    modalButtonGradient: {
+        paddingVertical: Spacing.md,
+        alignItems: 'center',
+        borderRadius: BorderRadius.lg,
+    },
+    modalButtonText: {
+        color: '#FFF',
+        fontSize: FontSizes.lg,
+        fontWeight: FontWeights.bold,
+    },
+    modalCancelButton: {
+        marginTop: Spacing.sm,
+        paddingVertical: Spacing.sm,
+        alignItems: 'center',
+    },
+    modalCancelText: {
+        color: Colors.textSecondary,
+        fontSize: FontSizes.md,
+        fontWeight: FontWeights.medium,
     },
 });

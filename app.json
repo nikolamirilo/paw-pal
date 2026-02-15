@@ -19,7 +19,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#FF8C42",
+        "backgroundColor": "#ffffff",
         "foregroundImage": "./assets/images/logo.png"
       },
       "permissions": [
@@ -28,7 +28,7 @@
       ],
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.reactifysolutions.paw-pal"
+      "package": "com.reactifysolutions.pawpal"
     },
     "web": {
       "output": "static",
@@ -36,13 +36,14 @@
     },
     "plugins": [
       "expo-router",
+      "@logrocket/react-native",
       [
         "expo-splash-screen",
         {
           "image": "./assets/images/logo.png",
           "imageWidth": 300,
           "resizeMode": "contain",
-          "backgroundColor": "#FF8C42"
+          "backgroundColor": "#ffffff"
         }
       ],
       [
@@ -62,7 +63,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "e22e1e02-ab2d-48be-be87-203349a8bf5a"
+        "projectId": "90a2d94e-3362-4bfd-be10-8bde12b51417"
       }
     },
     "owner": "reactifysolutions"
