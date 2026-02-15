@@ -60,15 +60,30 @@ export default function SettingsScreen() {
         if (recordings.length === 0) return;
 
         // Find max duration among active recordings
+        // Find max duration among active recordings
         const maxDuration = Math.max(...recordings.map(r => r.duration));
-        const minRequired = Math.ceil(maxDuration + 2); // Add 2s buffer
 
-        if (minRequired > settings.cooldownSeconds) {
-            updateSettings({ cooldownSeconds: minRequired });
-            setCooldown(minRequired);
+        // Cooldown must be strictly longer than the recording
+        // User rule: "based on your longest recording and selected cooldown option which is longer than that"
+
+        // Define standard options
+        const standardOptions = [5, 10, 15, 20, 30];
+
+        // Find the smallest standard option that is > maxDuration
+        let targetCooldown = standardOptions.find(opt => opt > maxDuration);
+
+        // If no standard option fits (e.g. recording is very long), fallback to next 5s increment above maxDuration
+        if (!targetCooldown) {
+            targetCooldown = Math.ceil((maxDuration + 1) / 5) * 5;
+        }
+
+        // Update if current setting is not sufficient (must be > maxDuration)
+        if (settings.cooldownSeconds <= maxDuration) {
+            updateSettings({ cooldownSeconds: targetCooldown });
+            setCooldown(targetCooldown);
             Alert.alert(
                 'Cooldown Updated ⏱️',
-                `Cooldown automatically increased to ${minRequired}s to match your longest recording.`
+                `Cooldown increased to ${targetCooldown}s. It must be longer than your longest recording (${Math.ceil(maxDuration)}s).`
             );
         }
     }, [recordings, settings.cooldownSeconds]);
@@ -248,8 +263,8 @@ export default function SettingsScreen() {
     };
 
     // Generate cooldown options, ensuring current value is included
-    const baseOptions = [5, 10, 15, 20, 30];
-    const cooldownOptions = [...new Set([...baseOptions, settings.cooldownSeconds])].sort((a, b) => a - b);
+    // const baseOptions = [5, 10, 15, 20, 30];
+    // const cooldownOptions = [...new Set([...baseOptions, settings.cooldownSeconds])].sort((a, b) => a - b);
     const safeThresholds = Array.isArray(thresholds) ? thresholds : DEFAULT_SETTINGS.thresholds;
 
     return (
@@ -391,51 +406,57 @@ export default function SettingsScreen() {
                     Time to wait between playing calming sounds.
                 </Text>
 
-                <View style={styles.cooldownOptions}>
-                    {cooldownOptions.map((option) => (
-                        <TouchableOpacity
-                            key={option}
-                            style={[
-                                styles.cooldownOption,
-                                settings.cooldownSeconds === option && styles.cooldownOptionSelected,
-                            ]}
-                            onPress={() => handleCooldownChange(option)}
-                        >
-                            <Text
-                                style={[
-                                    styles.cooldownOptionText,
-                                    settings.cooldownSeconds === option && styles.cooldownOptionTextSelected,
-                                ]}
-                            >
-                                {option}s
-                            </Text>
-                        </TouchableOpacity>
-                    ))}
+                <View style={styles.cooldownContainer}>
+                    {(() => {
+                        const maxDuration = recordings.length > 0 ? Math.max(...recordings.map(r => r.duration)) : 0;
+                        const minRequired = Math.ceil(maxDuration + 2);
+                        const baseOptions = [5, 10, 15, 20, 30];
+
+                        // Ensure we have valid options if minRequired > 30
+                        let displayOptions = [...baseOptions];
+                        if (minRequired > 30) {
+                            const nextValid = Math.ceil(minRequired / 5) * 5;
+                            if (!displayOptions.includes(nextValid)) {
+                                displayOptions.push(nextValid);
+                            }
+                        }
+                        displayOptions = displayOptions.sort((a, b) => a - b);
+
+
+                        return displayOptions.map((option) => {
+                            const isDisabled = option < minRequired;
+                            const isSelected = settings.cooldownSeconds === option;
+
+                            return (
+                                <TouchableOpacity
+                                    key={option}
+                                    style={[
+                                        styles.cooldownOption,
+                                        isSelected && styles.cooldownOptionSelected,
+                                        isDisabled && styles.cooldownOptionDisabled
+                                    ]}
+                                    onPress={() => !isDisabled && handleCooldownChange(option)}
+                                    disabled={isDisabled}
+                                >
+                                    <Text
+                                        style={[
+                                            styles.cooldownOptionText,
+                                            isSelected && styles.cooldownOptionTextSelected,
+                                            isDisabled && styles.cooldownOptionTextDisabled
+                                        ]}
+                                    >
+                                        {option}s
+                                    </Text>
+                                    {isDisabled && (
+                                        <Text style={styles.lockIcon}>🔒</Text>
+                                    )}
+                                </TouchableOpacity>
+                            );
+                        });
+                    })()}
                 </View>
-            </Card>
-
-            {/* Data Management */}
-            <Card emoji="📊" title="YOUR DATA" style={styles.card}>
-                <View style={styles.dataInfo}>
-                    <Text style={styles.dataText}>
-                        📝 {reports.length} reports saved
-                    </Text>
-                </View>
-
-                <Button
-                    title="Clear All Woof History"
-                    onPress={handleClearData}
-                    variant="danger"
-                    style={styles.clearButton}
-                />
-            </Card>
-
-            {/* About */}
-            <Card emoji="🐾" title="About Paw Pal App" style={styles.card}>
-                <Text style={styles.aboutText}>
-                    Paw Pal v1.1{'\n'}
-                    Made with ❤️ for pets everywhere{'\n\n'}
-                    Bringing peace to your paws, one bark at a time!
+                <Text style={styles.sliderHint}>
+                    Minimum cooldown is based on your longest recording.
                 </Text>
             </Card>
         </ScrollView>
@@ -523,38 +544,49 @@ const styles = StyleSheet.create({
         width: '100%',
         height: 40,
     },
-    saveThresholdsButton: {
+    cooldownContainer: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: Spacing.sm,
         marginTop: Spacing.sm,
     },
-    cooldownOptions: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: Spacing.md,
-        flexWrap: 'wrap',
-        gap: 8,
-    },
     cooldownOption: {
-        flexBasis: '18%', // Allow wrap if many options
-        minWidth: 50,
-        paddingVertical: Spacing.sm,
-        borderRadius: BorderRadius.md,
-        borderWidth: 2,
+        flexGrow: 1,
+        flexBasis: '30%',
+        paddingVertical: Spacing.md,
+        borderRadius: BorderRadius.lg,
+        borderWidth: 1,
         borderColor: Colors.border,
         alignItems: 'center',
         justifyContent: 'center',
+        backgroundColor: Colors.cardLight,
+        flexDirection: 'row',
+        gap: 4,
     },
     cooldownOptionSelected: {
         borderColor: Colors.secondary,
-        backgroundColor: Colors.secondary + '20',
+        backgroundColor: Colors.secondary + '15', // Light opacity
+        borderWidth: 2,
+    },
+    cooldownOptionDisabled: {
+        opacity: 0.5,
+        backgroundColor: Colors.backgroundLight,
+        borderColor: Colors.border,
     },
     cooldownOptionText: {
         fontSize: FontSizes.md,
-        color: Colors.textSecondary,
+        color: Colors.textPrimary,
         fontWeight: FontWeights.medium,
     },
     cooldownOptionTextSelected: {
         color: Colors.secondary,
         fontWeight: FontWeights.bold,
+    },
+    cooldownOptionTextDisabled: {
+        color: Colors.textMuted,
+    },
+    lockIcon: {
+        fontSize: FontSizes.xs,
     },
     saveCooldownButton: {
         marginTop: Spacing.xs,

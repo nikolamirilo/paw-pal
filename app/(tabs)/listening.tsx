@@ -1,4 +1,5 @@
 //@ts-nocheck
+import { SessionCompleteModal } from '@/components/listening/SessionCompleteModal';
 import { BarkLevelIndicator, SoundWave } from '@/components/listening/SoundWave';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -44,6 +45,11 @@ export default function ListeningScreen() {
         soundsPlayed: 0,
     });
     const [showTips, setShowTips] = useState(false);
+    const [showCompleteModal, setShowCompleteModal] = useState(false);
+    const [completedSessionData, setCompletedSessionData] = useState<{
+        stats: { barkCount: number; duration: string; soundsPlayed: number };
+        reportId?: string;
+    } | null>(null);
 
     const handleBarkDetected = useCallback((event: BarkEvent) => {
         addBarkEvent(event);
@@ -135,25 +141,36 @@ export default function ListeningScreen() {
         endSession();
 
         // Generate report if we have a session
+        // Generate report if we have a session
         const session = useAppStore.getState().currentSession;
+        let reportId: string | undefined;
+
         if (session && session.events.length > 0) {
             const report = generateReport(session);
             addReport(report);
-            Alert.alert(
-                'Woof-derful! 🎉',
-                `Session complete! ${session.events.length} woofs detected.`,
-                [
-                    { text: 'View Report', onPress: () => router.push(`/report/${report.id}`) },
-                    { text: 'OK' },
-                ]
-            );
-        } else {
-            Alert.alert(
-                'Session Complete 🐾',
-                'No woofs detected! Your pet was a good boy/girl!',
-                [{ text: 'Paw-some!' }]
-            );
+            reportId = report.id;
         }
+
+        // Calculate duration string for the modal
+        let finalDuration = '0:00';
+        if (session && session.startedAt) {
+            const startTime = new Date(session.startedAt).getTime();
+            const now = session.endedAt ? new Date(session.endedAt).getTime() : Date.now();
+            const seconds = Math.floor((now - startTime) / 1000);
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            finalDuration = `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        setCompletedSessionData({
+            stats: {
+                barkCount: session ? session.events.length : 0,
+                duration: finalDuration,
+                soundsPlayed: sessionStats.soundsPlayed,
+            },
+            reportId,
+        });
+        setShowCompleteModal(true);
     };
 
     // Cleanup on unmount
@@ -345,6 +362,21 @@ export default function ListeningScreen() {
                     </View>
                 </View>
             </Modal>
+            {/* Session Complete Modal */}
+            {completedSessionData && (
+                <SessionCompleteModal
+                    visible={showCompleteModal}
+                    onClose={() => setShowCompleteModal(false)}
+                    onViewReport={() => {
+                        setShowCompleteModal(false);
+                        if (completedSessionData.reportId) {
+                            router.push(`/report/${completedSessionData.reportId}`);
+                        }
+                    }}
+                    stats={completedSessionData.stats}
+                    reportId={completedSessionData.reportId}
+                />
+            )}
         </>
     );
 }

@@ -115,14 +115,6 @@ export function RecordingSlot({
     onRecord,
     onDelete,
 }: RecordingSlotProps) {
-    const getLevelEmoji = (level: number) => {
-        switch (level) {
-            case 1: return '🦴';
-            case 2: return '🦴🦴';
-            case 3: return '🦴🦴🦴';
-            default: return '🦴';
-        }
-    };
 
     const getLevelName = (level: number) => {
         switch (level) {
@@ -143,7 +135,7 @@ export function RecordingSlot({
         <View style={styles.slotContainer}>
             <View style={styles.slotHeader}>
                 <Text style={styles.slotTitle}>
-                    Level {slotNumber}: {getLevelName(slotNumber)} {getLevelEmoji(slotNumber)}
+                    Level {slotNumber}: {getLevelName(slotNumber)}
                 </Text>
             </View>
 
