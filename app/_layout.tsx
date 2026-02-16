@@ -1,10 +1,8 @@
 import { Colors } from '@/constants/Colors';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import LogRocket from '@logrocket/react-native';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
 import 'react-native-reanimated';
 
 
@@ -40,23 +38,12 @@ export const unstable_settings = {
 export default function RootLayout() {
   const colorScheme = useColorScheme();
 
-  useEffect(() => {
-    try {
-      LogRocket.init('elfuy9/paw-pal');
-      LogRocket.getSessionURL(url => {
-        console.log('LogRocket session URL: ' + url);
-      });
-    } catch (e) {
-      // LogRocket only works in native builds, fail silently in Expo Go
-      console.log('LogRocket disabled in this environment');
-    }
-  }, []);
-
   return (
     <ThemeProvider value={colorScheme === 'dark' ? PawPalDarkTheme : PawPalLightTheme}>
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
 
+        <Stack.Screen name="session-report/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       </Stack>
       <StatusBar style="auto" />

@@ -370,7 +370,7 @@ export default function ListeningScreen() {
                     onViewReport={() => {
                         setShowCompleteModal(false);
                         if (completedSessionData.reportId) {
-                            router.push(`/report/${completedSessionData.reportId}`);
+                            router.push(`/session-report/${completedSessionData.reportId}`);
                         }
                     }}
                     stats={completedSessionData.stats}

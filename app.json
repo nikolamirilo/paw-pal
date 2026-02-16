@@ -4,7 +4,7 @@
     "slug": "paw-pal",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/logo.png",
+    "icon": "./assets/images/logo.jpeg",
     "scheme": "paw-pal",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -20,7 +20,7 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#ffffff",
-        "foregroundImage": "./assets/images/logo.png"
+        "foregroundImage": "./assets/images/logo.jpeg"
       },
       "permissions": [
         "android.permission.RECORD_AUDIO",
@@ -30,18 +30,13 @@
       "predictiveBackGestureEnabled": false,
       "package": "com.reactifysolutions.pawpal"
     },
-    "web": {
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
-    },
     "plugins": [
       "expo-router",
-      "@logrocket/react-native",
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/logo.png",
-          "imageWidth": 300,
+          "image": "./assets/images/logo.jpeg",
+          "imageWidth": 400,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }

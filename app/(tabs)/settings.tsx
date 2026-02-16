@@ -10,6 +10,7 @@ import React, { useEffect, useState } from 'react';
 import {
     Alert,
     Image,
+    Linking,
     ScrollView,
     StyleSheet,
     Text,
@@ -459,6 +460,21 @@ export default function SettingsScreen() {
                     Minimum cooldown is based on your longest recording.
                 </Text>
             </Card>
+
+            {/* Buy Me a Coffee */}
+            <Card emoji="☕" title="Support Us" style={styles.card}>
+                <Text style={styles.description}>
+                    Love Paw Pal? Help us improve the app and keep building new features for your furry friend!
+                </Text>
+                <TouchableOpacity
+                    style={styles.coffeeButton}
+                    onPress={() => Linking.openURL('https://www.buymeacoffee.com/reactify.solutions')}
+                    activeOpacity={0.8}
+                >
+                    <Text style={styles.coffeeButtonEmoji}>☕</Text>
+                    <Text style={styles.coffeeButtonText}>Buy Me a Coffee</Text>
+                </TouchableOpacity>
+            </Card>
         </ScrollView>
     );
 }
@@ -752,6 +768,29 @@ const styles = StyleSheet.create({
         marginTop: Spacing.sm,
         marginBottom: Spacing.xs,
         fontStyle: 'italic',
+    },
+    coffeeButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#FFDD00',
+        borderRadius: BorderRadius.lg,
+        paddingVertical: Spacing.md,
+        paddingHorizontal: Spacing.lg,
+        gap: Spacing.sm,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.15,
+        shadowRadius: 4,
+        elevation: 3,
+    },
+    coffeeButtonEmoji: {
+        fontSize: FontSizes.xl,
+    },
+    coffeeButtonText: {
+        fontSize: FontSizes.md,
+        fontWeight: FontWeights.bold,
+        color: '#000000',
     },
 
 });
