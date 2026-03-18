@@ -12,14 +12,12 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Paw Pal needs microphone access to listen for your dog's barks and play calming sounds.",
-        "UIBackgroundModes": [
-          "audio"
-        ]
+        "UIBackgroundModes": ["audio"]
       }
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#ffffff",
+        "backgroundColor": "#fcfcfc",
         "foregroundImage": "./assets/images/logo.jpeg"
       },
       "permissions": [
@@ -36,9 +34,9 @@
         "expo-splash-screen",
         {
           "image": "./assets/images/logo.jpeg",
-          "imageWidth": 400,
-          "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
+          "imageWidth": 200,
+          "backgroundColor": "#fcfcfc",
+          "resizeMode": "contain"
         }
       ],
       [
